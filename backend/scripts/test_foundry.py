@@ -5,21 +5,19 @@ from app.agents.providers.microsoft_foundry import (
 )
 
 
-async def main():
+async def main() -> None:
     provider = MicrosoftFoundryProvider()
 
     response = await provider.create_response(
-        instructions=(
-            "You are a connection-testing assistant."
-        ),
+        instructions="You are a connection-testing assistant.",
         input_data=(
             "Reply with exactly: "
             "Microsoft Foundry connection successful"
         ),
-        tools=[],
     )
 
     print(response.output_text)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

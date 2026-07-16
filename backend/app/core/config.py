@@ -1,12 +1,15 @@
+from pydantic import AnyHttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    AZURE_OPENAI_API_KEY: str
-    AZURE_OPENAI_BASE_URL: str
+    OPENAI_API_KEY: SecretStr
+    OPENAI_BASE_URL: AnyHttpUrl
     AZURE_AI_MODEL_DEPLOYMENT_NAME: str
 
-    AGENT_TIMEOUT_SECONDS: int = 30
+    DATABASE_URL: SecretStr
+
+    AGENT_TIMEOUT_SECONDS: float = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,35 +1,40 @@
-from openai import AsyncOpenAI
+from collections.abc import Callable, Sequence
+from typing import Any
+
+from agent_framework import Agent
+from agent_framework.foundry import FoundryChatClient
+from azure.identity import AzureCliCredential
 
 from app.core.config import settings
 
 
 class MicrosoftFoundryProvider:
-    def __init__(self) -> None:
-        self.client = AsyncOpenAI(
-            api_key=settings.AZURE_OPENAI_API_KEY,
-            base_url=settings.AZURE_OPENAI_BASE_URL,
-            timeout=settings.AGENT_TIMEOUT_SECONDS,
-            max_retries=2,
+    def __init__(
+        self,
+        *,
+        credential: Any | None = None,
+        client_factory: Callable[..., Any] = FoundryChatClient,
+    ) -> None:
+        self._credential = credential or AzureCliCredential()
+
+        self._client = client_factory(
+            project_endpoint=settings.FOUNDRY_PROJECT_ENDPOINT,
+            model=settings.FOUNDRY_MODEL,
+            credential=self._credential,
         )
 
     async def create_response(
         self,
         *,
         instructions: str,
-        input_data,
-        tools: list[dict],
-        previous_response_id: str | None = None,
-    ):
-        request = {
-            "model": settings.AZURE_AI_MODEL_DEPLOYMENT_NAME,
-            "instructions": instructions,
-            "input": input_data,
-            "tools": tools,
-        }
+        input_data: str,
+        tools: Sequence[Callable[..., Any]] = (),
+    ) -> Any:
+        agent = Agent(
+            client=self._client,
+            name="RetailAssistant",
+            instructions=instructions,
+            tools=list(tools),
+        )
 
-        if previous_response_id is not None:
-            request["previous_response_id"] = (
-                previous_response_id
-            )
-
-        return await self.client.responses.create(**request)
+        return await agent.run(input_data)
