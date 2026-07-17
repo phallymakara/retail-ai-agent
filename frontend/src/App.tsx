@@ -18,11 +18,13 @@ const suggestedQuestions = [
 function createMessage(
   role: ChatMessage["role"],
   content: string,
+  imageUrl?: string,
 ): ChatMessage {
   return {
     id: crypto.randomUUID(),
     role,
     content,
+    imageUrl,
     timestamp: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -45,6 +47,28 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  function handlePlusClick() {
+    fileInputRef.current?.click()
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result
+        if (typeof result === "string") {
+          setSelectedImage(result)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+    event.target.value = ""
+  }
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -63,17 +87,23 @@ function App() {
     }
   }, [])
 
-  async function submitMessage(message: string) {
+  async function submitMessage(message: string, imageSrc?: string | null) {
     const trimmedMessage = message.trim()
+    const activeImage = imageSrc || selectedImage
 
-    if (!trimmedMessage || isLoading) {
+    if ((!trimmedMessage && !activeImage) || isLoading) {
       return
     }
 
-    const userMessage = createMessage("user", trimmedMessage)
+    const userMessage = createMessage(
+      "user",
+      trimmedMessage || "[Uploaded Image]",
+      activeImage || undefined,
+    )
 
     setMessages((current) => [...current, userMessage])
     setInput("")
+    setSelectedImage(null)
     setError(null)
     setIsLoading(true)
 
@@ -83,7 +113,7 @@ function App() {
     try {
       const response = await sendChatMessage(
         {
-          message: trimmedMessage,
+          message: trimmedMessage || "Analyze this uploaded image.",
           previous_response_id: previousResponseId,
         },
         controller.signal,
@@ -123,7 +153,7 @@ function App() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    void submitMessage(input)
+    void submitMessage(input, selectedImage)
   }
 
   function startNewConversation() {
@@ -179,13 +209,7 @@ function App() {
           </div>
 
           <div className="brand-info">
-            <h1>
-              Dara <span className="dot-separator">·</span> <span className="role-title">Shopping Assistant</span>
-            </h1>
-            <p>
-              <span className="online-dot" />
-              Online <span className="dot-separator">·</span> Usually replies instantly
-            </p>
+            <h1>Shopping Assistant</h1>
           </div>
         </div>
 
@@ -237,6 +261,12 @@ function App() {
 
                 <div className="message-content">
                   <div className="message-bubble">
+                    {message.imageUrl && (
+                      <div className="message-image">
+                        <img src={message.imageUrl} alt="Uploaded attachment" />
+                      </div>
+                    )}
+
                     {message.role === "assistant" ? (
                       <ReactMarkdown
                         components={{
@@ -258,14 +288,6 @@ function App() {
                       <p>{message.content}</p>
                     )}
 
-                    <div className="message-meta">
-                      <span className="message-time">
-                        {message.timestamp || "10:24 AM"}
-                      </span>
-                      {message.role === "user" && (
-                        <span className="message-status">✓✓</span>
-                      )}
-                    </div>
                   </div>
 
                   {message.role === "assistant" &&
@@ -275,6 +297,15 @@ function App() {
                         onAddToCart={addToCart}
                       />
                     )}
+
+                  <div className="message-meta">
+                    <span className="message-time">
+                      {message.timestamp || "10:24 AM"}
+                    </span>
+                    {message.role === "user" && (
+                      <span className="message-status">✓✓</span>
+                    )}
+                  </div>
                 </div>
               </article>
             ))}
@@ -300,27 +331,27 @@ function App() {
               </article>
             )}
 
+            {messages.length === 1 && (
+              <div className="suggestions">
+                <p>Try asking:</p>
+
+                <div className="suggestion-grid">
+                  {suggestedQuestions.map((question) => (
+                    <button
+                      key={question}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => void submitMessage(question)}
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
-
-          {messages.length === 1 && (
-            <div className="suggestions">
-              <p>Try asking:</p>
-
-              <div className="suggestion-grid">
-                {suggestedQuestions.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => void submitMessage(question)}
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="composer-section">
             {error && (
@@ -333,7 +364,40 @@ function App() {
               </div>
             )}
 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              style={{ display: "none" }}
+            />
+
+            {selectedImage && (
+              <div className="composer-image-preview">
+                <img src={selectedImage} alt="Selected preview" />
+                <button
+                  type="button"
+                  className="remove-preview-button"
+                  onClick={() => setSelectedImage(null)}
+                  aria-label="Remove image"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <form className="composer" onSubmit={handleSubmit}>
+              <button
+                type="button"
+                className="composer-plus-button"
+                aria-label="Add attachment"
+                onClick={handlePlusClick}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+              </button>
+
               <textarea
                 value={input}
                 disabled={isLoading}

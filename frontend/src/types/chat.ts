@@ -22,4 +22,5 @@ export interface ChatMessage {
     content: string
     toolExecutions?: ToolExecution[]
     timestamp?: string
+    imageUrl?: string
 }
