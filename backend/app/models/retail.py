@@ -48,6 +48,10 @@ class Store(Base):
         back_populates="store",
     )
 
+    orders: Mapped[list["Order"]] = relationship(
+        back_populates="store",
+    )
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -99,6 +103,9 @@ class Product(Base):
         back_populates="product",
     )
     promotions: Mapped[list["Promotion"]] = relationship(
+        back_populates="product",
+    )
+    order_items: Mapped[list["OrderItem"]] = relationship(
         back_populates="product",
     )
 
