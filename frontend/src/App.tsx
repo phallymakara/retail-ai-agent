@@ -5,8 +5,39 @@ import "./App.css"
 import { ProductCards } from "./components/ProductCards"
 import type { CartItem } from "./types/order"
 
-import { sendChatMessage } from "./services/chatApi"
+import { sendChatMessageStream } from "./services/chatApi"
 import type { ChatMessage } from "./types/chat"
+
+import { AuthButton } from "./components/AuthButton"
+import { useAuth } from "./contexts/AuthContext"
+
+export interface StoreBranch {
+  code: string
+  name: string
+  address: string
+  phone: string
+}
+
+export const storeBranches: StoreBranch[] = [
+  {
+    code: "PP-BKK1",
+    name: "Phnom Penh BKK1 Store",
+    address: "Boeung Keng Kang 1, Phnom Penh",
+    phone: "023 900 101",
+  },
+  {
+    code: "PP-TTP",
+    name: "Phnom Penh Toul Tom Poung Store",
+    address: "Toul Tom Poung, Phnom Penh",
+    phone: "023 900 102",
+  },
+  {
+    code: "SR-CENTRAL",
+    name: "Siem Reap Central Store",
+    address: "Central Siem Reap",
+    phone: "063 900 103",
+  },
+]
 
 const suggestedQuestions = [
   "Do you have fresh milk in Siem Reap?",
@@ -33,10 +64,16 @@ function createMessage(
 }
 
 function App() {
+  const { user } = useAuth()
+  const [selectedStore, setSelectedStore] = useState<StoreBranch>(storeBranches[0])
+  const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const [logoUrl, setLogoUrl] = useState("/src/assets/store.png")
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     createMessage(
       "assistant",
-      "Hello! I’m your retail shopping assistant. I can help you find products, check store availability, and discover current promotions.",
+      `Hello! I’m your retail shopping assistant for the ${storeBranches[0].name}. What product can I help you find today?`,
     ),
   ])
 
@@ -82,7 +119,17 @@ function App() {
   }, [messages, isLoading])
 
   useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsStoreDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
     return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
       abortControllerRef.current?.abort()
     }
   }, [])
@@ -110,28 +157,57 @@ function App() {
     const controller = new AbortController()
     abortControllerRef.current = controller
 
+    let assistantMessageId: string | null = null
+
     try {
-      const response = await sendChatMessage(
+      await sendChatMessageStream(
         {
           message: trimmedMessage || "Analyze this uploaded image.",
           previous_response_id: previousResponseId,
+          store_code: selectedStore.code,
+        },
+        (chunk) => {
+          if (!assistantMessageId) {
+            assistantMessageId = crypto.randomUUID()
+            const initialAssistantMessage: ChatMessage = {
+              id: assistantMessageId,
+              role: "assistant",
+              content: "",
+              toolExecutions: undefined,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            }
+            setMessages((current) => [...current, initialAssistantMessage])
+            setIsLoading(false)
+          }
+
+          const targetId = assistantMessageId
+          if (chunk.type === "tools" && chunk.tool_executions) {
+            setMessages((current) =>
+              current.map((msg) =>
+                msg.id === targetId
+                  ? { ...msg, toolExecutions: chunk.tool_executions }
+                  : msg
+              )
+            )
+          } else if (chunk.type === "response_id" && chunk.response_id) {
+            setPreviousResponseId(chunk.response_id)
+          } else if (chunk.type === "content" && chunk.delta) {
+            setMessages((current) =>
+              current.map((msg) =>
+                msg.id === targetId
+                  ? { ...msg, content: msg.content + chunk.delta }
+                  : msg
+              )
+            )
+          } else if (chunk.type === "error" && chunk.detail) {
+            setError(chunk.detail)
+          }
         },
         controller.signal,
       )
-
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response.answer,
-        toolExecutions: response.tool_executions,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      }
-
-      setMessages((current) => [...current, assistantMessage])
-      setPreviousResponseId(response.response_id)
     } catch (requestError) {
       if (
         requestError instanceof DOMException &&
@@ -156,19 +232,25 @@ function App() {
     void submitMessage(input, selectedImage)
   }
 
-  function startNewConversation() {
+  function startNewConversation(store: StoreBranch = selectedStore) {
     abortControllerRef.current?.abort()
 
     setMessages([
       createMessage(
         "assistant",
-        "Hello! I’m your retail shopping assistant. What product can I help you find today?",
+        `Hello! I’m your retail shopping assistant for the ${store.name}. What product can I help you find today?`,
       ),
     ])
     setPreviousResponseId(null)
     setInput("")
     setError(null)
     setIsLoading(false)
+  }
+
+  function handleStoreChange(store: StoreBranch) {
+    setSelectedStore(store)
+    setIsStoreDropdownOpen(false)
+    startNewConversation(store)
   }
   function addToCart(item: CartItem) {
     setCartItems((current) => {
@@ -183,10 +265,10 @@ function App() {
       return current.map((cartItem) =>
         cartItem.sku === item.sku
           ? {
-              ...cartItem,
-              quantity:
-                cartItem.quantity + item.quantity,
-            }
+            ...cartItem,
+            quantity:
+              cartItem.quantity + item.quantity,
+          }
           : cartItem,
       )
     })
@@ -194,8 +276,26 @@ function App() {
     setIsCartOpen(true)
   }
 
+  function updateCartItemQuantity(sku: string, nextQuantity: number) {
+    setCartItems((current) => {
+      if (nextQuantity === 0) {
+        return current.filter((item) => item.sku !== sku)
+      }
+      return current.map((item) =>
+        item.sku === sku
+          ? { ...item, quantity: Math.max(Math.min(nextQuantity, 99), 1) }
+          : item
+      )
+    })
+  }
+
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantity,
+    0,
+  )
+
+  const cartSubtotal = cartItems.reduce(
+    (total, item) => total + Number(item.unitPrice) * item.quantity,
     0,
   )
 
@@ -203,10 +303,14 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand">
-          <div className="brand-avatar-wrapper">
-            <div className="brand-avatar">D</div>
-            <span className="brand-status-dot" />
-          </div>
+          <img
+            src={logoUrl}
+            alt="Store logo"
+            className="brand-avatar-img"
+            onError={() => {
+              setLogoUrl("https://img.icons8.com/color/96/shop.png")
+            }}
+          />
 
           <div className="brand-info">
             <h1>Shopping Assistant</h1>
@@ -225,19 +329,58 @@ function App() {
             )}
           </button>
 
-          <button
-            className="new-chat-button"
-            type="button"
-            onClick={startNewConversation}
-          >
-            New conversation
-          </button>
+          <div className="store-selector-container" ref={dropdownRef}>
+            <button
+              className="store-selector-button"
+              type="button"
+              onClick={() => setIsStoreDropdownOpen((prev) => !prev)}
+              aria-expanded={isStoreDropdownOpen}
+              aria-haspopup="listbox"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="store-icon">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span>{selectedStore.name}</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dropdown-caret">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
 
-          <button type="button" className="menu-button" aria-label="Menu">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M5 12a2 2 0 11-4 0 2 2 0 014 0zm7 0a2 2 0 11-4 0 2 2 0 014 0zm7 0a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </button>
+            {isStoreDropdownOpen && (
+              <div className="store-dropdown-menu" role="listbox">
+                <div className="store-dropdown-header">Select store branch</div>
+                {storeBranches.map((store) => (
+                  <button
+                    key={store.code}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedStore.code === store.code}
+                    className={`store-dropdown-item ${selectedStore.code === store.code ? "store-dropdown-item--active" : ""
+                      }`}
+                    onClick={() => handleStoreChange(store)}
+                  >
+                    <div className="store-item-name">{store.name}</div>
+                    <div className="store-item-address">{store.address}</div>
+                    <div className="store-item-phone">{store.phone}</div>
+                  </button>
+                ))}
+                <div className="store-dropdown-divider" />
+                <button
+                  type="button"
+                  className="store-dropdown-reset"
+                  onClick={() => {
+                    startNewConversation(selectedStore);
+                    setIsStoreDropdownOpen(false);
+                  }}
+                >
+                  Reset Current Chat
+                </button>
+              </div>
+            )}
+          </div>
+
+          <AuthButton />
         </div>
       </header>
 
@@ -254,9 +397,17 @@ function App() {
                 key={message.id}
               >
                 {message.role === "assistant" && (
-                  <div className="message-avatar" aria-hidden="true">
-                    D
-                  </div>
+                  <img src={logoUrl} alt="Assistant logo" className="message-avatar-img" />
+                )}
+
+                {message.role === "user" && (
+                  user?.image ? (
+                    <img src={user.image} alt="User avatar" className="user-avatar-img" />
+                  ) : (
+                    <div className="user-avatar-fallback">
+                      {user ? user.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )
                 )}
 
                 <div className="message-content">
@@ -312,9 +463,7 @@ function App() {
 
             {isLoading && (
               <article className="message-row message-row--assistant">
-                <div className="message-avatar" aria-hidden="true">
-                  AI
-                </div>
+                <img src={logoUrl} alt="Assistant logo" className="message-avatar-img" />
 
                 <div className="message-content">
                   <div className="message-label">Retail Assistant</div>
@@ -420,9 +569,9 @@ function App() {
               <button
                 type="submit"
                 className="send-button"
-                disabled={!input.trim() || isLoading}
+                disabled={(!input.trim() && !selectedImage) || isLoading}
               >
-                {isLoading ? "Thinking..." : "Send"}
+                {isLoading ? "Sent" : "Send"}
               </button>
             </form>
 
@@ -469,14 +618,52 @@ function App() {
                         />
                       )}
 
-                      <div>
+                      <div className="cart-item-details">
                         <strong>{item.name}</strong>
-                        <p>
-                          {item.quantity} × ${item.unitPrice}
-                        </p>
+                        <div className="cart-item-meta">
+                          <span className="cart-item-unit-price">${item.unitPrice}</span>
+                          <span className="cart-item-total-price">
+                            Total: ${(Number(item.unitPrice) * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="cart-item-qty-control">
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            aria-label="Decrease quantity"
+                            disabled={item.quantity <= 1}
+                            onClick={() => updateCartItemQuantity(item.sku, item.quantity - 1)}
+                          >
+                            −
+                          </button>
+                          <span className="cart-item-qty-val">{item.quantity}</span>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            aria-label="Increase quantity"
+                            onClick={() => updateCartItemQuantity(item.sku, item.quantity + 1)}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className="cart-item-remove"
+                            onClick={() => updateCartItemQuantity(item.sku, 0)}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="cart-summary">
+                  <div className="cart-summary-row">
+                    <span>Subtotal</span>
+                    <strong>${cartSubtotal.toFixed(2)}</strong>
+                  </div>
                 </div>
 
                 <button
@@ -484,7 +671,7 @@ function App() {
                   type="button"
                   onClick={() => {
                     window.alert(
-                      "Checkout form will open here.",
+                      `Checkout form for ${selectedStore.name} will open here.`,
                     )
                   }}
                 >

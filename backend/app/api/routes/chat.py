@@ -1,4 +1,7 @@
+import json
+import asyncio
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 from openai import (
     APIConnectionError,
     APIStatusError,
@@ -6,75 +9,60 @@ from openai import (
 )
 
 from app.agents.retail_agent import RetailAgent
-from app.schemas.chat import (
-    ChatRequest,
-    ChatResponse,
-    ToolExecutionResponse,
-)
-
+from app.schemas.chat import ChatRequest
 
 router = APIRouter(
     prefix="/api/v1/chat",
     tags=["AI Agent"],
 )
 
-
-@router.post(
-    "",
-    response_model=ChatResponse,
-)
-async def chat(
-    request: ChatRequest,
-) -> ChatResponse:
+async def stream_agent_response(request: ChatRequest):
     agent = RetailAgent()
-
     try:
         result = await agent.run(
             request.message,
-            previous_response_id=(
-                request.previous_response_id
-            ),
+            previous_response_id=request.previous_response_id,
+            store_code=request.store_code,
         )
 
         executions = [
-            ToolExecutionResponse(
-                name=execution.name,
-                arguments=execution.arguments,
-                result=execution.result,
-            )
+            {
+                "name": execution.name,
+                "arguments": execution.arguments,
+                "result": execution.result,
+            }
             for execution in result.tool_executions
         ]
 
-        return ChatResponse(
-            answer=result.text,
-            response_id=result.response_id,
-            tools_used=[
-                execution.name
-                for execution in result.tool_executions
-            ],
-            tool_executions=executions,
-        )
+        # 1. Yield tool executions first so the cards render immediately
+        yield f"data: {json.dumps({'type': 'tools', 'tool_executions': executions}, ensure_ascii=False)}\n\n"
+        
+        # 2. Yield response_id for session context
+        yield f"data: {json.dumps({'type': 'response_id', 'response_id': result.response_id}, ensure_ascii=False)}\n\n"
+
+        # 3. Yield the text response chunk-by-chunk for smooth typing animation
+        words = result.text.split(" ")
+        for i, word in enumerate(words):
+            chunk = word + (" " if i < len(words) - 1 else "")
+            yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
+            await asyncio.sleep(0.015)  # 15ms delay per word
+
+        yield "data: {\"type\": \"done\"}\n\n"
 
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
+        yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)}, ensure_ascii=False)}\n\n"
     except RateLimitError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="The AI service is temporarily busy.",
-        ) from exc
+        yield f"data: {json.dumps({'type': 'error', 'detail': 'The AI service is temporarily busy.'}, ensure_ascii=False)}\n\n"
+    except (APIConnectionError, APIStatusError) as exc:
+        yield f"data: {json.dumps({'type': 'error', 'detail': 'Unable to connect to Microsoft Foundry.'}, ensure_ascii=False)}\n\n"
+    except Exception as exc:
+        yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)}, ensure_ascii=False)}\n\n"
 
-    except APIConnectionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to connect to Microsoft Foundry.",
-        ) from exc
-
-    except APIStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Microsoft Foundry returned an error.",
-        ) from exc
+@router.post("")
+async def chat(
+    request: ChatRequest,
+):
+    return StreamingResponse(
+        stream_agent_response(request),
+        media_type="text/event-stream",
+    )

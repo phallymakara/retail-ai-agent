@@ -1,6 +1,7 @@
 export interface ChatRequest {
     message: string
     previous_response_id?: string | null
+    store_code?: string | null
 }
 
 export interface ToolExecution {

@@ -181,6 +181,7 @@ class RetailAgent:
         message: str,
         *,
         previous_response_id: str | None = None,
+        store_code: str | None = None,
         max_steps: int = 6,
     ) -> RetailAgentResult:
         if not message.strip():
@@ -189,9 +190,13 @@ class RetailAgent:
         input_data: str | list[dict[str, Any]] = message
         tool_executions: list[ToolExecution] = []
 
+        instructions = RETAIL_AGENT_INSTRUCTIONS
+        if store_code:
+            instructions += f"\n10. The user is currently browsing and shopping at the store branch with code '{store_code}'. Prioritize checking inventory and answering queries for this branch, but you can check other branches if requested."
+
         for _ in range(max_steps):
             response = await self.provider.create_response(
-                instructions=RETAIL_AGENT_INSTRUCTIONS,
+                instructions=instructions,
                 input_data=input_data,
                 tools=TOOL_DEFINITIONS,
                 previous_response_id=previous_response_id,

@@ -9,6 +9,7 @@ class ChatRequest(BaseModel):
         max_length=2000,
     )
     previous_response_id: str | None = None
+    store_code: str | None = None
 
 
 class ToolExecutionResponse(BaseModel):

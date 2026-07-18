@@ -1,4 +1,4 @@
-import type { ChatRequest, ChatResponse } from "../types/chat"
+import type { ChatRequest } from "../types/chat"
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"
@@ -13,10 +13,19 @@ export class ChatApiError extends Error {
   }
 }
 
-export async function sendChatMessage(
+export interface ChatStreamChunk {
+  type: "tools" | "response_id" | "content" | "done" | "error"
+  tool_executions?: any[]
+  response_id?: string
+  delta?: string
+  detail?: string
+}
+
+export async function sendChatMessageStream(
   request: ChatRequest,
+  onChunk: (chunk: ChatStreamChunk) => void,
   signal?: AbortSignal,
-): Promise<ChatResponse> {
+): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/v1/chat`, {
     method: "POST",
     headers: {
@@ -42,5 +51,37 @@ export async function sendChatMessage(
     throw new ChatApiError(message, response.status)
   }
 
-  return (await response.json()) as ChatResponse
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error("No readable stream response")
+  }
+
+  const decoder = new TextDecoder("utf-8")
+  let buffer = ""
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        const cleanLine = line.trim()
+        if (!cleanLine.startsWith("data: ")) continue
+
+        const jsonStr = cleanLine.substring(6)
+        try {
+          const chunk: ChatStreamChunk = JSON.parse(jsonStr)
+          onChunk(chunk)
+        } catch (e) {
+          console.error("Error parsing stream chunk:", e)
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
 }
