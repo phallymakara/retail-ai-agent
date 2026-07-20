@@ -10,10 +10,9 @@ type AuthMode = "sign-in" | "sign-up"
 export interface AuthButtonProps {
     externalIsOpen?: boolean
     onRequestClose?: () => void
-    onOpenOrderHistory?: () => void
 }
 
-export function AuthButton({ externalIsOpen, onRequestClose, onOpenOrderHistory }: AuthButtonProps = {}) {
+export function AuthButton({ externalIsOpen, onRequestClose }: AuthButtonProps = {}) {
     const {
         user,
         isLoading,
@@ -153,19 +152,6 @@ export function AuthButton({ externalIsOpen, onRequestClose, onOpenOrderHistory 
                 {isOpen && (
                     <div className="account-dropdown">
                         <p>{user.email}</p>
-
-                        {onOpenOrderHistory && (
-                            <button
-                                type="button"
-                                className="account-dropdown-item-btn"
-                                onClick={() => {
-                                    closeModal()
-                                    onOpenOrderHistory()
-                                }}
-                            >
-                                Order History
-                            </button>
-                        )}
 
                         <button
                             type="button"

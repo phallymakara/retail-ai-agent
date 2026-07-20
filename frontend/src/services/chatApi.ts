@@ -1,4 +1,8 @@
-import type { ChatRequest } from "../types/chat"
+import type {
+  ChatRequest,
+  ConversationDetail,
+  ConversationSummary,
+} from "../types/chat"
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"
@@ -14,9 +18,10 @@ export class ChatApiError extends Error {
 }
 
 export interface ChatStreamChunk {
-  type: "tools" | "response_id" | "content" | "done" | "error"
+  type: "tools" | "response_id" | "content" | "done" | "error" | "conversation_id"
   tool_executions?: any[]
   response_id?: string
+  conversation_id?: string
   delta?: string
   detail?: string
 }
@@ -83,5 +88,60 @@ export async function sendChatMessageStream(
     }
   } finally {
     reader.releaseLock()
+  }
+}
+
+export async function getUserConversations(
+  authUserId: string,
+  signal?: AbortSignal,
+): Promise<ConversationSummary[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/chat/conversations/user/${encodeURIComponent(
+      authUserId,
+    )}`,
+    { signal },
+  )
+
+  if (!response.ok) {
+    throw new ChatApiError("Failed to fetch conversation history", response.status)
+  }
+
+  return (await response.json()) as ConversationSummary[]
+}
+
+export async function getConversationDetails(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<ConversationDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/chat/conversations/${encodeURIComponent(
+      conversationId,
+    )}`,
+    { signal },
+  )
+
+  if (!response.ok) {
+    throw new ChatApiError("Failed to fetch conversation details", response.status)
+  }
+
+  return (await response.json()) as ConversationDetail
+}
+
+export async function deleteConversation(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/chat/conversations/${encodeURIComponent(
+      conversationId,
+    )}`,
+    {
+      method: "DELETE",
+      signal,
+    },
+  )
+
+  if (!response.ok) {
+    throw new ChatApiError("Failed to delete conversation", response.status)
   }
 }

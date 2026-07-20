@@ -1,20 +1,41 @@
 import json
 import asyncio
-from fastapi import APIRouter, HTTPException, status
+import uuid
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from openai import (
     APIConnectionError,
     APIStatusError,
     RateLimitError,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.retail_agent import RetailAgent
-from app.schemas.chat import ChatRequest
+from app.db.session import AsyncSessionFactory, get_db_session
+from app.schemas.chat import (
+    ChatRequest,
+    ConversationDetailResponse,
+    ConversationResponse,
+)
+from app.services.conversation_service import (
+    add_chat_message,
+    create_or_get_conversation,
+    delete_conversation,
+    get_conversation_details,
+    get_user_conversations,
+)
 
 router = APIRouter(
     prefix="/api/v1/chat",
     tags=["AI Agent"],
 )
+
+DatabaseSession = Annotated[
+    AsyncSession,
+    Depends(get_db_session),
+]
+
 
 async def stream_agent_response(request: ChatRequest):
     if not request.is_authenticated and request.guest_question_count >= 3:
@@ -22,11 +43,38 @@ async def stream_agent_response(request: ChatRequest):
         yield "data: {\"type\": \"done\"}\n\n"
         return
 
+    conv_id: str | None = None
+    response_id_history: str | None = None
+
+    try:
+        async with AsyncSessionFactory() as session:
+            conv = await create_or_get_conversation(
+                session,
+                conversation_id=request.conversation_id,
+                auth_user_id=request.auth_user_id,
+                store_code=request.store_code,
+                first_message=request.message,
+            )
+            await add_chat_message(
+                session,
+                conversation_id=conv.id,
+                role="user",
+                content=request.message,
+            )
+            await session.commit()
+            conv_id = str(conv.id)
+            response_id_history = conv.response_id
+    except Exception as exc:
+        print(f"Warning: Failed to save initial user message to DB: {exc}")
+
+    if conv_id:
+        yield f"data: {json.dumps({'type': 'conversation_id', 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
+
     agent = RetailAgent()
     try:
         result = await agent.run(
             request.message,
-            previous_response_id=request.previous_response_id,
+            previous_response_id=request.previous_response_id or response_id_history,
             store_code=request.store_code,
         )
 
@@ -39,13 +87,28 @@ async def stream_agent_response(request: ChatRequest):
             for execution in result.tool_executions
         ]
 
-        # 1. Yield tool executions first so the cards render immediately
+        if conv_id:
+            try:
+                async with AsyncSessionFactory() as session:
+                    await add_chat_message(
+                        session,
+                        conversation_id=uuid.UUID(conv_id),
+                        role="assistant",
+                        content=result.text,
+                        tool_executions=executions,
+                        response_id=result.response_id,
+                    )
+                    await session.commit()
+            except Exception as exc:
+                print(f"Warning: Failed to save assistant response to DB: {exc}")
+
+        # 3. Yield tool executions
         yield f"data: {json.dumps({'type': 'tools', 'tool_executions': executions}, ensure_ascii=False)}\n\n"
         
-        # 2. Yield response_id for session context
+        # 4. Yield response_id for session context
         yield f"data: {json.dumps({'type': 'response_id', 'response_id': result.response_id}, ensure_ascii=False)}\n\n"
 
-        # 3. Yield the text response chunk-by-chunk for smooth typing animation
+        # 5. Yield the text response chunk-by-chunk for smooth typing animation
         words = result.text.split(" ")
         for i, word in enumerate(words):
             chunk = word + (" " if i < len(words) - 1 else "")
@@ -63,6 +126,7 @@ async def stream_agent_response(request: ChatRequest):
     except Exception as exc:
         yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)}, ensure_ascii=False)}\n\n"
 
+
 @router.post("")
 async def chat(
     request: ChatRequest,
@@ -71,3 +135,48 @@ async def chat(
         stream_agent_response(request),
         media_type="text/event-stream",
     )
+
+
+@router.get(
+    "/conversations/user/{auth_user_id}",
+    response_model=list[ConversationResponse],
+)
+async def get_user_conversations_route(
+    auth_user_id: str,
+    session: DatabaseSession,
+):
+    return await get_user_conversations(session, auth_user_id)
+
+
+@router.get(
+    "/conversations/{conversation_id}",
+    response_model=ConversationDetailResponse,
+)
+async def get_conversation_details_route(
+    conversation_id: uuid.UUID,
+    session: DatabaseSession,
+):
+    conv = await get_conversation_details(session, conversation_id)
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )
+    return conv
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_conversation_route(
+    conversation_id: uuid.UUID,
+    session: DatabaseSession,
+):
+    success = await delete_conversation(session, conversation_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )
+    await session.commit()

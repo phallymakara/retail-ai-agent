@@ -6,8 +6,13 @@ import { ProductCards } from "./components/ProductCards"
 import type { CartItem, OrderResponse } from "./types/order"
 import { createOrder, getUserOrders } from "./services/orderApi"
 
-import { sendChatMessageStream } from "./services/chatApi"
-import type { ChatMessage } from "./types/chat"
+import {
+  deleteConversation,
+  getConversationDetails,
+  getUserConversations as getSavedConversations,
+  sendChatMessageStream,
+} from "./services/chatApi"
+import type { ChatMessage, ConversationSummary } from "./types/chat"
 
 import { AuthButton } from "./components/AuthButton"
 import { useAuth } from "./contexts/AuthContext"
@@ -133,18 +138,23 @@ function App() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [placedOrder, setPlacedOrder] = useState<OrderResponse | null>(null)
 
-  // Order History State
-  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false)
+  // Left Sidebar & History State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [sidebarTab, setSidebarTab] = useState<"chat" | "orders">("chat")
+
   const [userOrders, setUserOrders] = useState<OrderResponse[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [orderHistoryError, setOrderHistoryError] = useState<string | null>(null)
 
-  async function openOrderHistory() {
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [userConversations, setUserConversations] = useState<ConversationSummary[]>([])
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false)
+  const [chatHistoryError, setChatHistoryError] = useState<string | null>(null)
+
+  const fetchUserOrders = async () => {
     if (!user) return
-    setIsOrderHistoryOpen(true)
     setIsLoadingOrders(true)
     setOrderHistoryError(null)
-
     try {
       const orders = await getUserOrders(user.id)
       setUserOrders(orders)
@@ -154,6 +164,84 @@ function App() {
       )
     } finally {
       setIsLoadingOrders(false)
+    }
+  }
+
+  const fetchUserConversations = async () => {
+    if (!user) return
+    setIsLoadingConversations(true)
+    setChatHistoryError(null)
+    try {
+      const convs = await getSavedConversations(user.id)
+      setUserConversations(convs)
+    } catch (err) {
+      setChatHistoryError(
+        err instanceof Error ? err.message : "Failed to load chat history.",
+      )
+    } finally {
+      setIsLoadingConversations(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user && isSidebarOpen) {
+      if (sidebarTab === "chat") {
+        void fetchUserConversations()
+      } else if (sidebarTab === "orders") {
+        void fetchUserOrders()
+      }
+    }
+  }, [user, isSidebarOpen, sidebarTab])
+
+  async function loadSelectedConversation(convId: string) {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const conv = await getConversationDetails(convId)
+      setCurrentConversationId(conv.id)
+      setPreviousResponseId(conv.response_id)
+
+      if (conv.store_code) {
+        const foundStore = storeBranches.find((s) => s.code === conv.store_code)
+        if (foundStore) {
+          setSelectedStore(foundStore)
+        }
+      }
+
+      const loadedMessages: ChatMessage[] = conv.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        toolExecutions: msg.tool_executions ? (msg.tool_executions as any) : undefined,
+        timestamp: new Date(msg.created_at).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }))
+
+      setMessages(loadedMessages)
+    } catch (err) {
+      setChatHistoryError(
+        err instanceof Error ? err.message : "Failed to load conversation details.",
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleDeleteConversation(convId: string, event: React.MouseEvent) {
+    event.stopPropagation()
+    try {
+      await deleteConversation(convId)
+      setUserConversations((prev) => prev.filter((c) => c.id !== convId))
+      if (currentConversationId === convId) {
+        startNewConversation()
+      }
+    } catch (err) {
+      setChatHistoryError(
+        err instanceof Error ? err.message : "Failed to delete conversation.",
+      )
     }
   }
 
@@ -224,10 +312,17 @@ function App() {
           message: trimmedMessage || "Analyze this uploaded image.",
           previous_response_id: previousResponseId,
           store_code: selectedStore.code,
+          conversation_id: currentConversationId,
+          auth_user_id: user?.id,
           is_authenticated: Boolean(user),
           guest_question_count: guestQuestionCount,
         },
         (chunk) => {
+          if (chunk.type === "conversation_id" && chunk.conversation_id) {
+            setCurrentConversationId(chunk.conversation_id)
+            return
+          }
+
           if (!assistantMessageId) {
             assistantMessageId = crypto.randomUUID()
             const initialAssistantMessage: ChatMessage = {
@@ -241,7 +336,6 @@ function App() {
               }),
             }
             setMessages((current) => [...current, initialAssistantMessage])
-            setIsLoading(false)
           }
 
           const targetId = assistantMessageId
@@ -351,6 +445,7 @@ function App() {
       ),
     ])
     setPreviousResponseId(null)
+    setCurrentConversationId(null)
     setInput("")
     setError(null)
     setIsLoading(false)
@@ -412,14 +507,21 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand">
-          <img
-            src={logoUrl}
-            alt="Store logo"
-            className="brand-avatar-img"
-            onError={() => {
-              setLogoUrl("https://img.icons8.com/color/96/shop.png")
-            }}
-          />
+          <button
+            type="button"
+            className="logo-toggle-btn"
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            title="Toggle Sidebar"
+          >
+            <img
+              src={logoUrl}
+              alt="Store logo"
+              className="brand-avatar-img"
+              onError={() => {
+                setLogoUrl("https://img.icons8.com/color/96/shop.png")
+              }}
+            />
+          </button>
 
           <div className="brand-info">
             <h1>Shopping Assistant</h1>
@@ -492,10 +594,139 @@ function App() {
           <AuthButton
             externalIsOpen={isAuthModalOpen}
             onRequestClose={() => setIsAuthModalOpen(false)}
-            onOpenOrderHistory={openOrderHistory}
           />
         </div>
       </header>
+
+      <div className="app-body">
+        {isSidebarOpen && (
+          <aside className="app-sidebar">
+            <div className="sidebar-tabs">
+              <button
+                type="button"
+                className={`sidebar-tab ${sidebarTab === "chat" ? "sidebar-tab--active" : ""}`}
+                onClick={() => setSidebarTab("chat")}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span>Chat History</span>
+              </button>
+
+              <button
+                type="button"
+                className={`sidebar-tab ${sidebarTab === "orders" ? "sidebar-tab--active" : ""}`}
+                onClick={() => setSidebarTab("orders")}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+                <span>Order History</span>
+              </button>
+            </div>
+
+            <div className="sidebar-content">
+              {!user ? (
+                <div className="sidebar-auth-prompt">
+                  <p>Sign in to view your chat history & order history.</p>
+                  <button
+                    type="button"
+                    className="sidebar-signin-btn"
+                    onClick={() => setIsAuthModalOpen(true)}
+                  >
+                    Sign in
+                  </button>
+                </div>
+              ) : sidebarTab === "chat" ? (
+                <div className="sidebar-section">
+                  <button
+                    type="button"
+                    className="sidebar-new-chat-btn"
+                    onClick={() => startNewConversation(selectedStore)}
+                  >
+                    + New Chat
+                  </button>
+
+                  {isLoadingConversations ? (
+                    <div className="sidebar-loading">Loading saved chats...</div>
+                  ) : chatHistoryError ? (
+                    <div className="sidebar-error">{chatHistoryError}</div>
+                  ) : userConversations.length === 0 ? (
+                    <div className="sidebar-empty">No past chat conversations found.</div>
+                  ) : (
+                    <div className="sidebar-list">
+                      {userConversations.map((conv) => (
+                        <div
+                          key={conv.id}
+                          className={`sidebar-item ${
+                            conv.id === currentConversationId ? "sidebar-item--active" : ""
+                          }`}
+                          onClick={() => void loadSelectedConversation(conv.id)}
+                        >
+                          <div className="sidebar-item-info">
+                            <strong className="sidebar-item-title">{conv.title}</strong>
+                            <span className="sidebar-item-sub">
+                              {new Date(conv.updated_at).toLocaleDateString([], {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="sidebar-item-delete"
+                            onClick={(e) => void handleDeleteConversation(conv.id, e)}
+                            title="Delete chat"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="sidebar-section">
+                  {isLoadingOrders ? (
+                    <div className="sidebar-loading">Loading order history...</div>
+                  ) : orderHistoryError ? (
+                    <div className="sidebar-error">{orderHistoryError}</div>
+                  ) : userOrders.length === 0 ? (
+                    <div className="sidebar-empty">You haven’t placed any orders yet.</div>
+                  ) : (
+                    <div className="sidebar-list">
+                      {userOrders.map((order) => (
+                        <div key={order.id} className="sidebar-order-card">
+                          <div className="sidebar-order-top">
+                            <strong>Order #{order.order_number}</strong>
+                            <span className={`order-status-badge status--${order.status}`}>
+                              {order.status}
+                            </span>
+                          </div>
+                          <div className="sidebar-order-store">{order.store_name}</div>
+                          <div className="sidebar-order-items-preview">
+                            {order.items.map((it) => (
+                              <div key={it.sku} className="sidebar-order-item-row">
+                                <span>{it.name} × {it.quantity}</span>
+                                <strong>${it.line_total}</strong>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="sidebar-order-bottom">
+                            <span>{new Date(order.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                            <strong className="sidebar-order-total">${order.total_amount} {order.currency}</strong>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
 
       <main className="chat-layout">
         <section className="chat-panel">
@@ -713,6 +944,7 @@ function App() {
           </div>
         </section>
       </main>
+    </div>
 
       {isCartOpen && (
         <div
@@ -745,6 +977,7 @@ function App() {
                     <div className="cart-item" key={item.sku}>
                       {item.imageUrl && (
                         <img
+                          className="cart-item-image"
                           src={item.imageUrl}
                           alt={item.name}
                         />
@@ -833,48 +1066,54 @@ function App() {
         </div>
       )}
 
-      {/* Checkout Modal for Signed-In Users */}
+      {/* Checkout Dialog Modal */}
       {isCheckoutOpen && user && (
         <div className="checkout-overlay" onClick={() => setIsCheckoutOpen(false)}>
           <div className="checkout-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="checkout-dialog__header">
-              <h2>Checkout - {selectedStore.name}</h2>
+              <h2>Checkout Order</h2>
               <button type="button" onClick={() => setIsCheckoutOpen(false)}>✕</button>
             </div>
 
-            <form className="checkout-form" onSubmit={handlePlaceOrder}>
-              <div className="checkout-user-card">
-                <span>Signed in as:</span>
-                <strong>{user.name} ({user.email})</strong>
+            <form onSubmit={handlePlaceOrder} className="checkout-form">
+              <div className="form-group">
+                <label>Store Branch</label>
+                <input type="text" disabled value={selectedStore.name} />
               </div>
 
-              <label>
-                Customer Phone *
-                <input
-                  type="tel"
-                  required
-                  placeholder="e.g., 012 345 678"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                />
-              </label>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Customer Name</label>
+                  <input type="text" disabled value={user.name} />
+                </div>
+                <div className="form-group">
+                  <label>Customer Phone *</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. 012345678"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                  />
+                </div>
+              </div>
 
-              <div className="checkout-fulfillment">
-                <label>Fulfillment Method</label>
+              <div className="form-group">
+                <label>Fulfillment Type</label>
                 <div className="fulfillment-options">
                   <button
                     type="button"
-                    className={`fulfillment-btn ${fulfillmentType === "pickup" ? "active" : ""}`}
+                    className={`fulfillment-option ${fulfillmentType === "pickup" ? "active" : ""}`}
                     onClick={() => setFulfillmentType("pickup")}
                   >
-                    Store Pickup
+                    🏪 Pickup at Store
                   </button>
                   <button
                     type="button"
-                    className={`fulfillment-btn ${fulfillmentType === "delivery" ? "active" : ""}`}
+                    className={`fulfillment-option ${fulfillmentType === "delivery" ? "active" : ""}`}
                     onClick={() => setFulfillmentType("delivery")}
                   >
-                    Home Delivery
+                    🛵 Delivery
                   </button>
                 </div>
               </div>
@@ -974,66 +1213,6 @@ function App() {
             >
               Done
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Order History Modal */}
-      {isOrderHistoryOpen && user && (
-        <div className="order-history-overlay" onClick={() => setIsOrderHistoryOpen(false)}>
-          <div className="order-history-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="order-history-dialog__header">
-              <div>
-                <h2>Order History</h2>
-                <span className="order-history-user">{user.name} ({user.email})</span>
-              </div>
-              <button type="button" onClick={() => setIsOrderHistoryOpen(false)}>✕</button>
-            </div>
-
-            {isLoadingOrders ? (
-              <div className="order-history-loading">Loading your order history...</div>
-            ) : orderHistoryError ? (
-              <div className="order-history-error">{orderHistoryError}</div>
-            ) : userOrders.length === 0 ? (
-              <div className="empty-order-history">
-                <p>You haven’t placed any orders yet.</p>
-              </div>
-            ) : (
-              <div className="order-history-list">
-                {userOrders.map((order) => (
-                  <div key={order.id} className="order-history-card">
-                    <div className="order-card-header">
-                      <div>
-                        <strong>Order #{order.order_number}</strong>
-                        <div className="order-card-store">{order.store_name}</div>
-                      </div>
-                      <span className={`order-status-badge status--${order.status}`}>
-                        {order.status}
-                      </span>
-                    </div>
-
-                    <div className="order-card-meta">
-                      <span>Date: {new Date(order.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                      <span>Fulfillment: {order.fulfillment_type}</span>
-                    </div>
-
-                    <div className="order-card-items">
-                      {order.items.map((item) => (
-                        <div key={item.sku} className="order-card-item">
-                          <span>{item.name} × {item.quantity}</span>
-                          <strong>${item.line_total}</strong>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="order-card-footer">
-                      <span>Total:</span>
-                      <strong>${order.total_amount} {order.currency}</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
