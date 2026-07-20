@@ -65,6 +65,11 @@ class Order(Base):
         ForeignKey("stores.id", ondelete="RESTRICT"),
         index=True,
     )
+    auth_user_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
 
     customer_name: Mapped[str] = mapped_column(String(150))
     customer_phone: Mapped[str] = mapped_column(String(30))

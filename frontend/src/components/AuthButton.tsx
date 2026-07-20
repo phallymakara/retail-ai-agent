@@ -7,7 +7,13 @@ import { authClient } from "../lib/auth"
 
 type AuthMode = "sign-in" | "sign-up"
 
-export function AuthButton() {
+export interface AuthButtonProps {
+    externalIsOpen?: boolean
+    onRequestClose?: () => void
+    onOpenOrderHistory?: () => void
+}
+
+export function AuthButton({ externalIsOpen, onRequestClose, onOpenOrderHistory }: AuthButtonProps = {}) {
     const {
         user,
         isLoading,
@@ -15,9 +21,19 @@ export function AuthButton() {
         signOut,
     } = useAuth()
 
-    const [isOpen, setIsOpen] = useState(false)
-    const [mode, setMode] =
-        useState<AuthMode>("sign-in")
+    const [internalIsOpen, setInternalIsOpen] = useState(false)
+    const isOpen = externalIsOpen || internalIsOpen
+
+    function closeModal() {
+        setInternalIsOpen(false)
+        onRequestClose?.()
+    }
+
+    function openModal() {
+        setInternalIsOpen(true)
+    }
+
+    const [mode, setMode] = useState<AuthMode>("sign-in")
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -66,7 +82,7 @@ export function AuthButton() {
                     "Account created successfully. Check your email if verification is enabled.",
                 )
             } else {
-                setIsOpen(false)
+                closeModal()
             }
 
             setPassword("")
@@ -123,7 +139,7 @@ export function AuthButton() {
                 <button
                     className="account-button"
                     type="button"
-                    onClick={() => setIsOpen(!isOpen)}
+                    onClick={() => isOpen ? closeModal() : openModal()}
                 >
                     {user.image ? (
                         <img src={user.image} alt={user.name} />
@@ -138,8 +154,22 @@ export function AuthButton() {
                     <div className="account-dropdown">
                         <p>{user.email}</p>
 
+                        {onOpenOrderHistory && (
+                            <button
+                                type="button"
+                                className="account-dropdown-item-btn"
+                                onClick={() => {
+                                    closeModal()
+                                    onOpenOrderHistory()
+                                }}
+                            >
+                                Order History
+                            </button>
+                        )}
+
                         <button
                             type="button"
+                            className="account-dropdown-signout-btn"
                             onClick={() => void signOut()}
                         >
                             Sign out
@@ -155,7 +185,7 @@ export function AuthButton() {
             <button
                 className="auth-header-button"
                 type="button"
-                onClick={() => setIsOpen(true)}
+                onClick={openModal}
             >
                 Sign in
             </button>
@@ -163,7 +193,7 @@ export function AuthButton() {
             {isOpen && createPortal(
                 <div
                     className="auth-overlay"
-                    onClick={() => setIsOpen(false)}
+                    onClick={closeModal}
                 >
                     <section
                         className="auth-dialog"
@@ -185,7 +215,7 @@ export function AuthButton() {
                             <button
                                 type="button"
                                 aria-label="Close"
-                                onClick={() => setIsOpen(false)}
+                                onClick={closeModal}
                             >
                                 ×
                             </button>

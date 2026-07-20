@@ -71,6 +71,7 @@ async def create_order(
     customer_note: str | None,
     payment_method: str,
     lines: list[OrderLineInput],
+    auth_user_id: str | None = None,
 ) -> Order:
     if not lines:
         raise OrderError("The order must contain at least one item.")
@@ -185,6 +186,7 @@ async def create_order(
         order_number=generate_order_number(),
         store_id=store.id,
         store=store,
+        auth_user_id=auth_user_id,
         customer_name=customer_name.strip(),
         customer_phone=customer_phone.strip(),
         customer_email=(

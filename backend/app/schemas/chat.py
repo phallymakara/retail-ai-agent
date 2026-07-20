@@ -10,6 +10,8 @@ class ChatRequest(BaseModel):
     )
     previous_response_id: str | None = None
     store_code: str | None = None
+    is_authenticated: bool = False
+    guest_question_count: int = 0
 
 
 class ToolExecutionResponse(BaseModel):

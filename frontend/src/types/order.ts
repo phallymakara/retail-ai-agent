@@ -19,6 +19,8 @@ export interface CreateOrderRequest {
     customer_name: string
     customer_phone: string
     customer_email: string | null
+    auth_user_id?: string | null
+    is_authenticated?: boolean
     fulfillment_type: "pickup" | "delivery"
     delivery_address: string | null
     customer_note: string | null
@@ -46,6 +48,7 @@ export interface OrderResponse {
     customer_name: string
     customer_phone: string
     customer_email: string | null
+    auth_user_id?: string | null
     fulfillment_type: "pickup" | "delivery"
     delivery_address: string | null
     customer_note: string | null

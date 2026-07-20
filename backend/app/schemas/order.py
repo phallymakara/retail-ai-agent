@@ -37,6 +37,11 @@ class OrderCreateRequest(BaseModel):
         default=None,
         max_length=254,
     )
+    auth_user_id: str | None = Field(
+        default=None,
+        max_length=255,
+    )
+    is_authenticated: bool = True
     fulfillment_type: Literal["pickup", "delivery"] = "pickup"
     delivery_address: str | None = Field(
         default=None,
@@ -90,6 +95,7 @@ class OrderResponse(BaseModel):
     customer_name: str
     customer_phone: str
     customer_email: str | None
+    auth_user_id: str | None = None
     fulfillment_type: str
     delivery_address: str | None
     customer_note: str | None

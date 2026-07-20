@@ -2,6 +2,8 @@ export interface ChatRequest {
     message: string
     previous_response_id?: string | null
     store_code?: string | null
+    is_authenticated?: boolean
+    guest_question_count?: number
 }
 
 export interface ToolExecution {

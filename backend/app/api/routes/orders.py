@@ -52,6 +52,7 @@ def build_order_response(
         customer_name=order.customer_name,
         customer_phone=order.customer_phone,
         customer_email=order.customer_email,
+        auth_user_id=order.auth_user_id,
         fulfillment_type=order.fulfillment_type,
         delivery_address=order.delivery_address,
         customer_note=order.customer_note,
@@ -90,6 +91,12 @@ async def place_order(
     request: OrderCreateRequest,
     session: DatabaseSession,
 ) -> OrderResponse:
+    if not request.is_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication is required to place an order. Please sign in.",
+        )
+
     try:
         async with session.begin():
             order = await create_order(
@@ -102,6 +109,7 @@ async def place_order(
                 delivery_address=request.delivery_address,
                 customer_note=request.customer_note,
                 payment_method=request.payment_method,
+                auth_user_id=request.auth_user_id,
                 lines=[
                     OrderLineInput(
                         sku=item.sku,
@@ -148,6 +156,34 @@ async def place_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.get(
+    "/user/{auth_user_id}",
+    response_model=list[OrderResponse],
+)
+async def get_user_orders(
+    auth_user_id: str,
+    session: DatabaseSession,
+) -> list[OrderResponse]:
+    result = await session.scalars(
+        select(Order)
+        .options(
+            joinedload(Order.store),
+            selectinload(Order.items),
+        )
+        .where(Order.auth_user_id == auth_user_id)
+        .order_by(Order.created_at.desc())
+    )
+    orders = result.all()
+    return [
+        build_order_response(
+            order,
+            store_code=order.store.code,
+            store_name=order.store.name,
+        )
+        for order in orders
+    ]
 
 
 @router.get(

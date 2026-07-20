@@ -17,6 +17,11 @@ router = APIRouter(
 )
 
 async def stream_agent_response(request: ChatRequest):
+    if not request.is_authenticated and request.guest_question_count >= 3:
+        yield f"data: {json.dumps({'type': 'error', 'detail': 'You have reached the limit of 3 questions for guest users. Please sign in to continue asking questions.'}, ensure_ascii=False)}\n\n"
+        yield "data: {\"type\": \"done\"}\n\n"
+        return
+
     agent = RetailAgent()
     try:
         result = await agent.run(

@@ -99,3 +99,24 @@ export async function getOrder(
 
     return (await response.json()) as OrderResponse
 }
+
+export async function getUserOrders(
+    authUserId: string,
+    signal?: AbortSignal,
+): Promise<OrderResponse[]> {
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/orders/user/${encodeURIComponent(
+            authUserId,
+        )}`,
+        { signal },
+    )
+
+    if (!response.ok) {
+        throw new OrderApiError(
+            "Unable to retrieve user order history.",
+            response.status,
+        )
+    }
+
+    return (await response.json()) as OrderResponse[]
+}
