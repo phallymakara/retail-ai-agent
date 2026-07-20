@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { FormEvent } from "react"
 import ReactMarkdown from "react-markdown"
 import "./App.css"
@@ -15,6 +15,7 @@ import {
 import type { ChatMessage, ConversationSummary } from "./types/chat"
 
 import { AuthButton } from "./components/AuthButton"
+import { DiscoverPage } from "./components/DiscoverPage"
 import { useAuth } from "./contexts/AuthContext"
 
 export interface StoreBranch {
@@ -127,6 +128,7 @@ function App() {
 
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [activeView, setActiveView] = useState<"chat" | "discover">("chat")
 
   // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
@@ -142,9 +144,46 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<"chat" | "orders">("chat")
 
+  type OrderDateFilter = "all" | "today" | "yesterday" | "week" | "month"
+  const [orderDateFilter, setOrderDateFilter] = useState<OrderDateFilter>("all")
+
   const [userOrders, setUserOrders] = useState<OrderResponse[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [orderHistoryError, setOrderHistoryError] = useState<string | null>(null)
+
+  const filteredUserOrders = useMemo(() => {
+    if (orderDateFilter === "all") return userOrders
+
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+
+    return userOrders.filter((order) => {
+      const orderDate = new Date(order.created_at)
+
+      if (orderDateFilter === "today") {
+        return orderDate >= startOfToday
+      }
+
+      if (orderDateFilter === "yesterday") {
+        return orderDate >= startOfYesterday && orderDate < startOfToday
+      }
+
+      if (orderDateFilter === "week") {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        return orderDate >= sevenDaysAgo
+      }
+
+      if (orderDateFilter === "month") {
+        return (
+          orderDate.getMonth() === now.getMonth() &&
+          orderDate.getFullYear() === now.getFullYear()
+        )
+      }
+
+      return true
+    })
+  }, [userOrders, orderDateFilter])
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [userConversations, setUserConversations] = useState<ConversationSummary[]>([])
@@ -316,6 +355,7 @@ function App() {
           auth_user_id: user?.id,
           is_authenticated: Boolean(user),
           guest_question_count: guestQuestionCount,
+          has_image: Boolean(activeImage),
         },
         (chunk) => {
           if (chunk.type === "conversation_id" && chunk.conversation_id) {
@@ -529,6 +569,31 @@ function App() {
         </div>
 
         <div className="header-actions">
+          {activeView === "chat" ? (
+            <button
+              type="button"
+              className="discover-button"
+              onClick={() => setActiveView("discover")}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <span>Discover</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="chat-nav-button"
+              onClick={() => setActiveView("chat")}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span>Chat Assistant</span>
+            </button>
+          )}
+
           <button
             type="button"
             className="cart-button"
@@ -598,7 +663,14 @@ function App() {
         </div>
       </header>
 
-      <div className="app-body">
+      {activeView === "discover" ? (
+        <DiscoverPage
+          onAddToCart={addToCart}
+          storeName={selectedStore.name}
+          onSwitchToChat={() => setActiveView("chat")}
+        />
+      ) : (
+        <div className="app-body">
         {isSidebarOpen && (
           <aside className="app-sidebar">
             <div className="sidebar-tabs">
@@ -689,15 +761,55 @@ function App() {
                 </div>
               ) : (
                 <div className="sidebar-section">
+                  <div className="order-filter-chips">
+                    <button
+                      type="button"
+                      className={`filter-chip ${orderDateFilter === "all" ? "filter-chip--active" : ""}`}
+                      onClick={() => setOrderDateFilter("all")}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-chip ${orderDateFilter === "today" ? "filter-chip--active" : ""}`}
+                      onClick={() => setOrderDateFilter("today")}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-chip ${orderDateFilter === "yesterday" ? "filter-chip--active" : ""}`}
+                      onClick={() => setOrderDateFilter("yesterday")}
+                    >
+                      Yesterday
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-chip ${orderDateFilter === "week" ? "filter-chip--active" : ""}`}
+                      onClick={() => setOrderDateFilter("week")}
+                    >
+                      This Week
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-chip ${orderDateFilter === "month" ? "filter-chip--active" : ""}`}
+                      onClick={() => setOrderDateFilter("month")}
+                    >
+                      This Month
+                    </button>
+                  </div>
+
                   {isLoadingOrders ? (
                     <div className="sidebar-loading">Loading order history...</div>
                   ) : orderHistoryError ? (
                     <div className="sidebar-error">{orderHistoryError}</div>
                   ) : userOrders.length === 0 ? (
                     <div className="sidebar-empty">You haven’t placed any orders yet.</div>
+                  ) : filteredUserOrders.length === 0 ? (
+                    <div className="sidebar-empty">No orders found for this period.</div>
                   ) : (
                     <div className="sidebar-list">
-                      {userOrders.map((order) => (
+                      {filteredUserOrders.map((order) => (
                         <div key={order.id} className="sidebar-order-card">
                           <div className="sidebar-order-top">
                             <strong>Order #{order.order_number}</strong>
@@ -945,6 +1057,7 @@ function App() {
         </section>
       </main>
     </div>
+  )}
 
       {isCartOpen && (
         <div
@@ -1216,6 +1329,7 @@ function App() {
           </div>
         </div>
       )}
+
     </div>
   )
 }

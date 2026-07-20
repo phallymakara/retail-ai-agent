@@ -6,6 +6,7 @@ export interface ChatRequest {
     auth_user_id?: string | null
     is_authenticated?: boolean
     guest_question_count?: number
+    has_image?: boolean
 }
 
 export interface ToolExecution {

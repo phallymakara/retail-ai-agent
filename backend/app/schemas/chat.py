@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     auth_user_id: str | None = None
     is_authenticated: bool = False
     guest_question_count: int = 0
+    has_image: bool = False
 
 
 class ToolExecutionResponse(BaseModel):

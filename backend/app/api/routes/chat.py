@@ -18,6 +18,7 @@ from app.schemas.chat import (
     ConversationDetailResponse,
     ConversationResponse,
 )
+from app.services import retail_catalog
 from app.services.conversation_service import (
     add_chat_message,
     create_or_get_conversation,
@@ -69,6 +70,104 @@ async def stream_agent_response(request: ChatRequest):
 
     if conv_id:
         yield f"data: {json.dumps({'type': 'conversation_id', 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
+
+    # Simulated Image Analysis for Prototype
+    is_image_request = request.has_image or any(
+        kw in request.message.lower()
+        for kw in ["[uploaded image]", "analyze this uploaded image", "image"]
+    )
+
+    if is_image_request:
+        milk_results = []
+        rice_results = []
+        try:
+            async with AsyncSessionFactory() as session:
+                milk_results = await retail_catalog.search_products(session, query="milk", limit=5)
+                rice_results = await retail_catalog.search_products(session, query="rice", limit=5)
+        except Exception as exc:
+            print(f"Catalog search exception for image simulation: {exc}")
+
+        if not milk_results:
+            milk_results = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "sku": "MILK-001",
+                    "name": "Fresh Whole Milk (1L)",
+                    "name_km": "ទឹកដោះគោស្រស់ 1L",
+                    "category": "Dairy",
+                    "description": "100% Pure Fresh Whole Milk",
+                    "price": "2.50",
+                    "currency": "USD",
+                    "brand": "Angkor Dairy",
+                    "image_url": "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400",
+                    "is_active": True,
+                }
+            ]
+        if not rice_results:
+            rice_results = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "sku": "RICE-001",
+                    "name": "Premium Jasmine Rice (5kg)",
+                    "name_km": "អង្ករផ្ការំដួល 5kg",
+                    "category": "Grains",
+                    "description": "Cambodian Premium Phka Rumduol Jasmine Rice",
+                    "price": "8.90",
+                    "currency": "USD",
+                    "brand": "Angkor Harvest",
+                    "image_url": "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400",
+                    "is_active": True,
+                }
+            ]
+
+        simulated_tools = [
+            {
+                "name": "search_products",
+                "arguments": {"query": "milk"},
+                "result": milk_results,
+            },
+            {
+                "name": "search_products",
+                "arguments": {"query": "rice"},
+                "result": rice_results,
+            },
+        ]
+
+        simulated_text = (
+            "I analyzed your uploaded image! I detected the following items in your picture:\n\n"
+            "1. 🥛 **Fresh Whole Milk**\n"
+            "2. 🌾 **Premium Jasmine Rice**\n\n"
+            "Here are the matching products available in our store:"
+        )
+
+        simulated_response_id = f"resp-{uuid.uuid4().hex[:12]}"
+
+        if conv_id:
+            try:
+                async with AsyncSessionFactory() as session:
+                    await add_chat_message(
+                        session,
+                        conversation_id=uuid.UUID(conv_id),
+                        role="assistant",
+                        content=simulated_text,
+                        tool_executions=simulated_tools,
+                        response_id=simulated_response_id,
+                    )
+                    await session.commit()
+            except Exception as exc:
+                print(f"Warning: Failed to save assistant simulated image response to DB: {exc}")
+
+        yield f"data: {json.dumps({'type': 'tools', 'tool_executions': simulated_tools}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'response_id', 'response_id': simulated_response_id}, ensure_ascii=False)}\n\n"
+
+        words = simulated_text.split(" ")
+        for i, word in enumerate(words):
+            chunk = word + (" " if i < len(words) - 1 else "")
+            yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
+            await asyncio.sleep(0.015)
+
+        yield "data: {\"type\": \"done\"}\n\n"
+        return
 
     agent = RetailAgent()
     try:
