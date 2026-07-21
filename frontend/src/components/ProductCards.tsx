@@ -20,11 +20,13 @@ interface ProductRecord {
 interface ProductCardProps {
     product: ProductRecord
     onAddToCart: (item: CartItem) => void
+    isStaff?: boolean
 }
 
 interface ProductCardsProps {
     executions: ToolExecution[]
     onAddToCart: (item: CartItem) => void
+    isStaff?: boolean
 }
 
 function isRecord(
@@ -227,35 +229,37 @@ function ProductCard({
                     )}
                 </div>
 
-                <div className="quantity-selector">
-                    <button
-                        type="button"
-                        aria-label="Decrease quantity"
-                        disabled={quantity <= 1}
-                        onClick={() => changeQuantity(quantity - 1)}
-                    >
-                        −
-                    </button>
-                    <input
-                        type="number"
-                        min={1}
-                        max={maximumQuantity}
-                        value={quantity}
-                        disabled={isOutOfStock}
-                        aria-label="Product quantity"
-                        onChange={(event) =>
-                            changeQuantity(Number(event.target.value) || 1)
-                        }
-                    />
-                    <button
-                        type="button"
-                        aria-label="Increase quantity"
-                        disabled={isOutOfStock || quantity >= maximumQuantity}
-                        onClick={() => changeQuantity(quantity + 1)}
-                    >
-                        +
-                    </button>
-                </div>
+                {!isStaff && (
+                    <div className="quantity-selector">
+                        <button
+                            type="button"
+                            aria-label="Decrease quantity"
+                            disabled={quantity <= 1}
+                            onClick={() => changeQuantity(quantity - 1)}
+                        >
+                            −
+                        </button>
+                        <input
+                            type="number"
+                            min={1}
+                            max={maximumQuantity}
+                            value={quantity}
+                            disabled={isOutOfStock}
+                            aria-label="Product quantity"
+                            onChange={(event) =>
+                                changeQuantity(Number(event.target.value) || 1)
+                            }
+                        />
+                        <button
+                            type="button"
+                            aria-label="Increase quantity"
+                            disabled={isOutOfStock || quantity >= maximumQuantity}
+                            onClick={() => changeQuantity(quantity + 1)}
+                        >
+                            +
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="product-card__right">
@@ -287,17 +291,19 @@ function ProductCard({
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    className="add-cart-button"
-                    disabled={isOutOfStock}
-                    onClick={() => onAddToCart(createCartItem())}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" className="cart-btn-icon">
-                        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
-                    </svg>
-                    Add to cart
-                </button>
+                {!isStaff && (
+                    <button
+                        type="button"
+                        className="add-cart-button"
+                        disabled={isOutOfStock}
+                        onClick={() => onAddToCart(createCartItem())}
+                    >
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" className="cart-btn-icon">
+                            <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
+                        </svg>
+                        Add to cart
+                    </button>
+                )}
             </div>
         </article>
     )
@@ -306,6 +312,7 @@ function ProductCard({
 export function ProductCards({
     executions,
     onAddToCart,
+    isStaff,
 }: ProductCardsProps) {
     const products = extractProducts(executions)
 
@@ -321,6 +328,7 @@ export function ProductCards({
                     product={product}
                     index={index}
                     onAddToCart={onAddToCart}
+                    isStaff={isStaff}
                 />
             ))}
         </div>

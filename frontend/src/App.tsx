@@ -16,6 +16,9 @@ import type { ChatMessage, ConversationSummary } from "./types/chat"
 
 import { AuthButton } from "./components/AuthButton"
 import { DiscoverPage } from "./components/DiscoverPage"
+import { InventoryProposalCard } from "./components/InventoryProposalCard"
+import { ReorderAlertsCard } from "./components/ReorderAlertsCard"
+import { AuditReportCard } from "./components/AuditReportCard"
 import { useAuth } from "./contexts/AuthContext"
 
 export interface StoreBranch {
@@ -46,11 +49,18 @@ export const storeBranches: StoreBranch[] = [
   },
 ]
 
-const suggestedQuestions = [
+const customerSuggestedQuestions = [
   "Do you have fresh milk in Siem Reap?",
   "Show me active promotions",
   "Find jasmine rice",
-  "Which products are low in stock?",
+  "Which products are available at BKK1?",
+]
+
+const staffSuggestedQuestions = [
+  "Which items are low in stock or need reordering?",
+  "Transfer 10 units of MILK-UHT-1L from PP-BKK1 to PP-TTP",
+  "Increase stock of RICE-JASMINE-5K by 20 at PP-BKK1",
+  "Generate inventory report for PP-BKK1",
 ]
 
 function createMessage(
@@ -143,6 +153,17 @@ function App() {
   // Left Sidebar & History State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<"chat" | "orders">("chat")
+
+  const isStaffUser = Boolean(
+    user?.email &&
+    (user.email.toLowerCase().includes("admin") || user.email.toLowerCase().includes("staff"))
+  )
+
+  useEffect(() => {
+    if (isStaffUser && sidebarTab === "orders") {
+      setSidebarTab("chat")
+    }
+  }, [isStaffUser, sidebarTab])
 
   type OrderDateFilter = "all" | "today" | "yesterday" | "week" | "month"
   const [orderDateFilter, setOrderDateFilter] = useState<OrderDateFilter>("all")
@@ -353,6 +374,8 @@ function App() {
           store_code: selectedStore.code,
           conversation_id: currentConversationId,
           auth_user_id: user?.id,
+          user_email: user?.email,
+          user_role: (user?.email && (user.email.toLowerCase().includes("admin") || user.email.toLowerCase().includes("staff"))) ? "staff" : "customer",
           is_authenticated: Boolean(user),
           guest_question_count: guestQuestionCount,
           has_image: Boolean(activeImage),
@@ -564,46 +587,50 @@ function App() {
           </button>
 
           <div className="brand-info">
-            <h1>Shopping Assistant</h1>
+            <h1>{isStaffUser ? "Staff Inventory Assistant" : "Shopping Assistant"}</h1>
           </div>
         </div>
 
         <div className="header-actions">
-          {activeView === "chat" ? (
-            <button
-              type="button"
-              className="discover-button"
-              onClick={() => setActiveView("discover")}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <span>Discover</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="chat-nav-button"
-              onClick={() => setActiveView("chat")}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              <span>Chat Assistant</span>
-            </button>
+          {!isStaffUser && (
+            activeView === "chat" ? (
+              <button
+                type="button"
+                className="discover-button"
+                onClick={() => setActiveView("discover")}
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <span>Discover</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="chat-nav-button"
+                onClick={() => setActiveView("chat")}
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span>Chat Assistant</span>
+              </button>
+            )
           )}
 
-          <button
-            type="button"
-            className="cart-button"
-            onClick={() => setIsCartOpen(true)}
-          >
-            Cart
-            {cartQuantity > 0 && (
-              <span>{cartQuantity}</span>
-            )}
-          </button>
+          {!isStaffUser && (
+            <button
+              type="button"
+              className="cart-button"
+              onClick={() => setIsCartOpen(true)}
+            >
+              Cart
+              {cartQuantity > 0 && (
+                <span>{cartQuantity}</span>
+              )}
+            </button>
+          )}
 
           <div className="store-selector-container" ref={dropdownRef}>
             <button
@@ -676,7 +703,7 @@ function App() {
             <div className="sidebar-tabs">
               <button
                 type="button"
-                className={`sidebar-tab ${sidebarTab === "chat" ? "sidebar-tab--active" : ""}`}
+                className={`sidebar-tab ${sidebarTab === "chat" || isStaffUser ? "sidebar-tab--active" : ""}`}
                 onClick={() => setSidebarTab("chat")}
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -685,24 +712,26 @@ function App() {
                 <span>Chat History</span>
               </button>
 
-              <button
-                type="button"
-                className={`sidebar-tab ${sidebarTab === "orders" ? "sidebar-tab--active" : ""}`}
-                onClick={() => setSidebarTab("orders")}
-              >
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <path d="M16 10a4 4 0 0 1-8 0" />
-                </svg>
-                <span>Order History</span>
-              </button>
+              {!isStaffUser && (
+                <button
+                  type="button"
+                  className={`sidebar-tab ${sidebarTab === "orders" ? "sidebar-tab--active" : ""}`}
+                  onClick={() => setSidebarTab("orders")}
+                >
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <path d="M16 10a4 4 0 0 1-8 0" />
+                  </svg>
+                  <span>Order History</span>
+                </button>
+              )}
             </div>
 
             <div className="sidebar-content">
               {!user ? (
                 <div className="sidebar-auth-prompt">
-                  <p>Sign in to view your chat history & order history.</p>
+                  <p>Sign in to view your chat history.</p>
                   <button
                     type="button"
                     className="sidebar-signin-btn"
@@ -711,7 +740,7 @@ function App() {
                     Sign in
                   </button>
                 </div>
-              ) : sidebarTab === "chat" ? (
+              ) : (sidebarTab === "chat" || isStaffUser) ? (
                 <div className="sidebar-section">
                   <button
                     type="button"
@@ -899,10 +928,39 @@ function App() {
 
                   {message.role === "assistant" &&
                     message.toolExecutions && (
-                      <ProductCards
-                        executions={message.toolExecutions}
-                        onAddToCart={addToCart}
-                      />
+                      <>
+                        {message.toolExecutions.map((exec, idx) => {
+                          if (
+                            (exec.name === "propose_stock_adjustment" || exec.name === "propose_stock_transfer") &&
+                            exec.result &&
+                            typeof exec.result === "object" &&
+                            !("error" in exec.result)
+                          ) {
+                            return <InventoryProposalCard key={`proposal-${idx}`} proposal={exec.result as any} />
+                          }
+                          if (exec.name === "check_reorder_alerts" && Array.isArray(exec.result)) {
+                            return <ReorderAlertsCard key={`reorder-${idx}`} alerts={exec.result as any} />
+                          }
+                          if (exec.name === "get_inventory_audit_logs" && Array.isArray(exec.result)) {
+                            return <AuditReportCard key={`audit-${idx}`} auditLogs={exec.result as any} />
+                          }
+                          if (
+                            exec.name === "generate_inventory_report" &&
+                            exec.result &&
+                            typeof exec.result === "object" &&
+                            !("error" in exec.result)
+                          ) {
+                            return <AuditReportCard key={`report-${idx}`} report={exec.result as any} />
+                          }
+                          return null
+                        })}
+
+                        <ProductCards
+                          executions={message.toolExecutions}
+                          onAddToCart={addToCart}
+                          isStaff={isStaffUser}
+                        />
+                      </>
                     )}
 
                   <div className="message-meta">
@@ -941,7 +999,12 @@ function App() {
                 <p>Try asking:</p>
 
                 <div className="suggestion-grid">
-                  {suggestedQuestions.map((question) => (
+                  {(
+                    user?.email &&
+                    (user.email.toLowerCase().includes("admin") || user.email.toLowerCase().includes("staff"))
+                      ? staffSuggestedQuestions
+                      : customerSuggestedQuestions
+                  ).map((question) => (
                     <button
                       key={question}
                       type="button"

@@ -7,14 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.orders import router as orders_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.catalog import router as catalog_router
+from app.api.routes.inventory import router as inventory_router
 
-from app.db.session import close_database
+from app.db.session import close_database, init_db
 
 
 @asynccontextmanager
 async def lifespan(
     app: FastAPI,
 ) -> AsyncIterator[None]:
+    await init_db()
     yield
     await close_database()
 
@@ -48,6 +50,7 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(catalog_router)
 app.include_router(orders_router)
+app.include_router(inventory_router)
 
 
 @app.get(

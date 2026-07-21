@@ -4,6 +4,8 @@ export interface ChatRequest {
     store_code?: string | null
     conversation_id?: string | null
     auth_user_id?: string | null
+    user_email?: string | null
+    user_role?: string | null
     is_authenticated?: boolean
     guest_question_count?: number
     has_image?: boolean

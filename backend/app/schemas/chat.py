@@ -14,6 +14,8 @@ class ChatRequest(BaseModel):
     store_code: str | None = None
     conversation_id: str | None = None
     auth_user_id: str | None = None
+    user_email: str | None = None
+    user_role: str | None = None
     is_authenticated: bool = False
     guest_question_count: int = 0
     has_image: bool = False

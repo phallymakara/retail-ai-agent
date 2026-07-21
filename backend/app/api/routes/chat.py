@@ -170,11 +170,23 @@ async def stream_agent_response(request: ChatRequest):
         return
 
     agent = RetailAgent()
+    user_email_lower = (request.user_email or "").lower()
+    is_staff_user = (
+        request.user_role == "staff"
+        or "admin" in user_email_lower
+        or "staff" in user_email_lower
+        or user_email_lower.startswith("admin@")
+    )
+    role = "staff" if is_staff_user else "customer"
+
     try:
         result = await agent.run(
             request.message,
             previous_response_id=request.previous_response_id or response_id_history,
             store_code=request.store_code,
+            role=role,
+            staff_user_id=request.auth_user_id,
+            staff_name=request.user_email.split("@")[0] if request.user_email else "Staff Member",
         )
 
         executions = [
