@@ -1,4 +1,5 @@
 import type {
+    DemandForecastItem,
     InventoryAuditLogItem,
     InventoryProposalData,
     InventoryReportData,
@@ -93,6 +94,31 @@ export async function fetchInventoryReportApi(
     const response = await fetch(url.toString())
     if (!response.ok) {
         throw new Error("Failed to fetch inventory report.")
+    }
+    return response.json()
+}
+
+export function getExportReportPdfUrl(storeCode?: string): string {
+    const url = new URL(`${API_BASE_URL}/api/v1/inventory/reports/export/pdf`)
+    if (storeCode) url.searchParams.set("store_code", storeCode)
+    return url.toString()
+}
+
+export function getExportReportExcelUrl(storeCode?: string): string {
+    const url = new URL(`${API_BASE_URL}/api/v1/inventory/reports/export/excel`)
+    if (storeCode) url.searchParams.set("store_code", storeCode)
+    return url.toString()
+}
+
+export async function fetchDemandForecastApi(
+    storeCode?: string,
+): Promise<DemandForecastItem[]> {
+    const url = new URL(`${API_BASE_URL}/api/v1/inventory/forecast`)
+    if (storeCode) url.searchParams.set("store_code", storeCode)
+
+    const response = await fetch(url.toString())
+    if (!response.ok) {
+        throw new Error("Failed to fetch AI demand forecast.")
     }
     return response.json()
 }

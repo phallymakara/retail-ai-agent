@@ -1,5 +1,6 @@
-import { FileText, History, ArrowRightLeft, ArrowUp, ArrowDown, AlertTriangle, AlertOctagon } from "lucide-react"
+import { FileText, History, ArrowRightLeft, ArrowUp, ArrowDown, AlertOctagon, Download, FileSpreadsheet } from "lucide-react"
 import type { InventoryAuditLogItem, InventoryReportData } from "../types/inventory"
+import { getExportReportPdfUrl, getExportReportExcelUrl } from "../services/inventoryApi"
 
 interface AuditReportCardProps {
     auditLogs?: InventoryAuditLogItem[]
@@ -11,11 +12,61 @@ export function AuditReportCard({ auditLogs, report }: AuditReportCardProps) {
         return (
             <div className="audit-report-card">
                 {/* Header */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #bfdbfe", paddingBottom: "8px", marginBottom: "12px" }}>
-                    <FileText size={16} color="#2563eb" />
-                    <h4 style={{ margin: 0, fontSize: "13px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.04em", color: "#1d4ed8" }}>
-                        Report: {report.store_name || report.store_code_filter || "All Branches"}
-                    </h4>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #bfdbfe", paddingBottom: "8px", marginBottom: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <FileText size={16} color="#2563eb" />
+                        <h4 style={{ margin: 0, fontSize: "13px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.04em", color: "#1d4ed8" }}>
+                            Report: {report.store_name || report.store_code_filter || "All Branches"}
+                        </h4>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <a
+                            href={getExportReportPdfUrl(report.store_code_filter || undefined)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                background: "#eff6ff",
+                                color: "#1d4ed8",
+                                border: "1px solid #bfdbfe",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                textDecoration: "none",
+                                cursor: "pointer"
+                            }}
+                            title="Download Report as PDF Document"
+                        >
+                            <Download size={12} /> Export PDF
+                        </a>
+
+                        <a
+                            href={getExportReportExcelUrl(report.store_code_filter || undefined)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                background: "#f0fdf4",
+                                color: "#15803d",
+                                border: "1px solid #bbf7d0",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                textDecoration: "none",
+                                cursor: "pointer"
+                            }}
+                            title="Download Report as Excel Workbook (.xlsx)"
+                        >
+                            <FileSpreadsheet size={12} /> Export Excel (.xlsx)
+                        </a>
+                    </div>
                 </div>
 
                 {/* Summary Metrics */}
@@ -89,27 +140,7 @@ export function AuditReportCard({ auditLogs, report }: AuditReportCardProps) {
                     </div>
                 )}
 
-                {/* Low Stock Items List */}
-                {report.low_stock_items && report.low_stock_items.length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
-                        <div style={{ fontSize: "11px", fontWeight: "700", color: "#b45309", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "4px" }}>
-                            <AlertTriangle size={12} /> Low Stock Products ({report.low_stock_items.length}):
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            {report.low_stock_items.map((item, idx) => (
-                                <div key={`low-${item.sku}-${idx}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: "12px" }}>
-                                    <div>
-                                        <span style={{ fontWeight: "700", color: "#0f172a" }}>{item.product_name}</span>
-                                        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "6px" }}>({item.sku})</span>
-                                    </div>
-                                    <div style={{ fontSize: "11px", color: "#b45309", fontWeight: "600" }}>
-                                        Branch: {item.store_code} · Left: <strong style={{ color: "#d97706" }}>{item.available_quantity}</strong> (Reorder: {item.reorder_level})
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Out of Stock Items List */}
                 {report.out_of_stock_items && report.out_of_stock_items.length > 0 && (

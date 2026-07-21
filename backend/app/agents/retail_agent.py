@@ -14,6 +14,7 @@ from app.agents.tools import (
     get_active_promotions,
     get_inventory_audit_logs,
     get_product_details,
+    predictive_demand_forecast,
     propose_stock_adjustment,
     propose_stock_transfer,
     search_products,
@@ -203,6 +204,18 @@ STAFF_TOOLS: list[dict[str, Any]] = CUSTOMER_TOOLS + [
             "additionalProperties": False,
         },
     },
+    {
+        "type": "function",
+        "name": "predictive_demand_forecast",
+        "description": "Predict product sales velocity, days until stockout, and AI restocking/transfer recommendations based on sales demand.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "store_code": {"type": ["string", "null"], "description": "Optional store code filter."},
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -219,6 +232,7 @@ TOOL_HANDLERS: dict[str, ToolHandler] = {
     "confirm_inventory_action": confirm_inventory_action,
     "get_inventory_audit_logs": get_inventory_audit_logs,
     "generate_inventory_report": generate_inventory_report,
+    "predictive_demand_forecast": predictive_demand_forecast,
 }
 
 

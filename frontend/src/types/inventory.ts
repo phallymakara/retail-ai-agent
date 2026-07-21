@@ -106,3 +106,19 @@ export interface InventoryReportData {
     low_stock_items?: InventoryReportItem[]
     out_of_stock_items?: InventoryReportItem[]
 }
+
+export interface DemandForecastItem {
+    sku: string
+    product_name: string
+    category: string
+    store_code: string
+    store_name: string
+    available_quantity: number
+    reorder_level: number
+    daily_sales_rate: number
+    days_until_stockout: number
+    urgency: "critical" | "warning" | "stable" | string
+    recommendation: string
+    suggested_donor_store_code?: string | null
+    suggested_transfer_qty?: number | null
+}

@@ -3,6 +3,7 @@ from app.agents.tools.inventory_tools import (
     confirm_inventory_action,
     generate_inventory_report,
     get_inventory_audit_logs,
+    predictive_demand_forecast,
     propose_stock_adjustment,
     propose_stock_transfer,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "get_active_promotions",
     "get_inventory_audit_logs",
     "get_product_details",
+    "predictive_demand_forecast",
     "propose_stock_adjustment",
     "propose_stock_transfer",
     "search_products",

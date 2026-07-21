@@ -154,6 +154,7 @@ function getProductSpecs(product: ProductRecord): string {
 function ProductCard({
     product,
     onAddToCart,
+    isStaff,
     index,
 }: ProductCardProps & { index: number }) {
     const maximumQuantity =

@@ -1,10 +1,12 @@
+from datetime import datetime
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
 from app.schemas.inventory import ProposalConfirmRequest
-from app.services import inventory_service
+from app.services import forecast_service, inventory_service
+from app.services.report_export_service import generate_excel_report, generate_pdf_report
 
 router = APIRouter(
     prefix="/api/v1/inventory",
@@ -82,6 +84,55 @@ async def inventory_report_route(
     store_code: str | None = None,
 ):
     return await inventory_service.generate_inventory_report(
+        session,
+        store_code=store_code,
+    )
+
+
+@router.get("/reports/export/pdf")
+async def export_inventory_pdf_route(
+    session: DatabaseSession,
+    store_code: str | None = None,
+):
+    report_data = await inventory_service.generate_inventory_report(
+        session,
+        store_code=store_code,
+    )
+    pdf_bytes = generate_pdf_report(report_data)
+    code_str = store_code.upper() if store_code else "All_Branches"
+    filename = f"Inventory_Report_{code_str}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/export/excel")
+async def export_inventory_excel_route(
+    session: DatabaseSession,
+    store_code: str | None = None,
+):
+    report_data = await inventory_service.generate_inventory_report(
+        session,
+        store_code=store_code,
+    )
+    excel_bytes = generate_excel_report(report_data)
+    code_str = store_code.upper() if store_code else "All_Branches"
+    filename = f"Inventory_Report_{code_str}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/forecast")
+async def get_demand_forecast_route(
+    session: DatabaseSession,
+    store_code: str | None = None,
+):
+    return await forecast_service.get_demand_forecast(
         session,
         store_code=store_code,
     )

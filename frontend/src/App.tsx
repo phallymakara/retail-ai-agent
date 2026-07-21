@@ -19,6 +19,7 @@ import { DiscoverPage } from "./components/DiscoverPage"
 import { InventoryProposalCard } from "./components/InventoryProposalCard"
 import { ReorderAlertsCard } from "./components/ReorderAlertsCard"
 import { AuditReportCard } from "./components/AuditReportCard"
+import { DemandForecastCard } from "./components/DemandForecastCard"
 import { useAuth } from "./contexts/AuthContext"
 
 export interface StoreBranch {
@@ -49,6 +50,13 @@ export const storeBranches: StoreBranch[] = [
   },
 ]
 
+export const ALL_BRANCHES_STORE: StoreBranch = {
+  code: "",
+  name: "All Store Branches",
+  address: "All Locations across Cambodia",
+  phone: "Multi-branch Overview",
+}
+
 const customerSuggestedQuestions = [
   "Do you have fresh milk in Siem Reap?",
   "Show me active promotions",
@@ -57,9 +65,9 @@ const customerSuggestedQuestions = [
 ]
 
 const staffSuggestedQuestions = [
+  "Show AI sales & demand forecast for stockouts",
   "Which items are low in stock or need reordering?",
   "Transfer 10 units of MILK-UHT-1L from PP-BKK1 to PP-TTP",
-  "Increase stock of RICE-JASMINE-5K by 20 at PP-BKK1",
   "Generate inventory report for PP-BKK1",
 ]
 
@@ -653,6 +661,20 @@ function App() {
             {isStoreDropdownOpen && (
               <div className="store-dropdown-menu" role="listbox">
                 <div className="store-dropdown-header">Select store branch</div>
+
+                {/* All Store Branches Option */}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedStore.code === ALL_BRANCHES_STORE.code}
+                  className={`store-dropdown-item ${selectedStore.code === ALL_BRANCHES_STORE.code ? "store-dropdown-item--active" : ""}`}
+                  onClick={() => handleStoreChange(ALL_BRANCHES_STORE)}
+                >
+                  <div className="store-item-name">All Store Branches</div>
+                  <div className="store-item-address">View & audit stock across all retail branches</div>
+                </button>
+                <div className="store-dropdown-divider" />
+
                 {storeBranches.map((store) => (
                   <button
                     key={store.code}
@@ -937,6 +959,15 @@ function App() {
                             !("error" in exec.result)
                           ) {
                             return <InventoryProposalCard key={`proposal-${idx}`} proposal={exec.result as any} />
+                          }
+                          if (exec.name === "predictive_demand_forecast" && Array.isArray(exec.result)) {
+                            return (
+                              <DemandForecastCard
+                                key={`forecast-${idx}`}
+                                forecasts={exec.result as any}
+                                onProposeAction={(promptText) => void submitMessage(promptText)}
+                              />
+                            )
                           }
                           if (exec.name === "check_reorder_alerts" && Array.isArray(exec.result)) {
                             return <ReorderAlertsCard key={`reorder-${idx}`} alerts={exec.result as any} />
