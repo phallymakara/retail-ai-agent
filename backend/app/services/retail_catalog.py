@@ -89,7 +89,7 @@ async def search_products(
     store_code: str | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    limit = min(max(limit, 1), 20)
+    limit = min(max(limit, 1), 100)
 
     statement = (
         select(Product)

@@ -68,6 +68,9 @@ export interface BranchSummary {
 export interface CategoryProductItem {
     sku: string
     product_name: string
+    product_name_km?: string | null
+    brand?: string | null
+    image_url?: string | null
     total_quantity: number
     available_quantity: number
     store_code?: string

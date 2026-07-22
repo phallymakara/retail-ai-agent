@@ -22,6 +22,7 @@ import { AuditReportCard } from "./components/AuditReportCard"
 import { DemandForecastCard } from "./components/DemandForecastCard"
 import { ReorderRecommendationCard } from "./components/ReorderRecommendationCard"
 import { ExceptionAlertsCard } from "./components/ExceptionAlertsCard"
+import { StockInspector } from "./components/StockInspector"
 import type { ReorderRecommendationItem, InventoryExceptionItem } from "./types/inventory"
 import { useAuth } from "./contexts/AuthContext"
 
@@ -152,6 +153,7 @@ function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [activeView, setActiveView] = useState<"chat" | "discover">("chat")
+  const [staffActiveTab, setStaffActiveTab] = useState<"chat" | "inspect">("chat")
 
   // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
@@ -605,6 +607,27 @@ function App() {
         </div>
 
         <div className="header-actions">
+          {isStaffUser && (
+            <div className="staff-tabs" style={{ display: "flex", gap: "8px", marginRight: "12px" }}>
+              <button
+                type="button"
+                className={`branch-select-btn ${staffActiveTab === "chat" ? "branch-select-btn--active" : ""}`}
+                style={{ padding: "8px 14px", fontSize: "12px" }}
+                onClick={() => setStaffActiveTab("chat")}
+              >
+                Chat
+              </button>
+              <button
+                type="button"
+                className={`branch-select-btn ${staffActiveTab === "inspect" ? "branch-select-btn--active" : ""}`}
+                style={{ padding: "8px 14px", fontSize: "12px" }}
+                onClick={() => setStaffActiveTab("inspect")}
+              >
+                Stock
+              </button>
+            </div>
+          )}
+
           {!isStaffUser && (
             activeView === "chat" ? (
               <button
@@ -721,6 +744,8 @@ function App() {
         <DiscoverPage
           onAddToCart={addToCart}
           storeName={selectedStore.name}
+          storeCode={selectedStore.code}
+          onStoreChange={(store) => setSelectedStore(store)}
           onSwitchToChat={() => setActiveView("chat")}
         />
       ) : (
@@ -896,8 +921,26 @@ function App() {
           </aside>
         )}
 
-      <main className="chat-layout">
-        <section className="chat-panel">
+      {isStaffUser && staffActiveTab === "inspect" ? (
+        <StockInspector
+          initialStoreCode={selectedStore.code || storeBranches[0].code}
+          onProposeRestock={(sku, storeCode, qty, reason) => {
+            setStaffActiveTab("chat")
+            void submitMessage(
+              `propose stock adjustment for product ${sku} at store ${storeCode} with quantity ${qty} and reason: ${reason}`
+            )
+          }}
+          onProposeTransfer={(sku, fromStoreCode, toStoreCode, qty, reason) => {
+            setStaffActiveTab("chat")
+            void submitMessage(
+              `propose stock transfer for product ${sku} from store ${fromStoreCode} to store ${toStoreCode} with quantity ${qty} and reason: ${reason}`
+            )
+          }}
+          onSwitchToChat={() => setStaffActiveTab("chat")}
+        />
+      ) : (
+        <main className="chat-layout">
+          <section className="chat-panel">
           <div className="message-list" aria-live="polite">
             <div className="date-divider">
               <span>Today</span>
@@ -1182,6 +1225,7 @@ function App() {
           </div>
         </section>
       </main>
+      )}
     </div>
   )}
 

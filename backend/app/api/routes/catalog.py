@@ -20,11 +20,13 @@ async def get_products(
     session: DatabaseSession,
     query: str | None = Query(default=None),
     category: str | None = Query(default=None),
+    store_code: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=100),
 ):
     return await retail_catalog.search_products(
         session,
         query=query,
         category=category,
+        store_code=store_code,
         limit=limit,
     )

@@ -587,6 +587,9 @@ async def generate_inventory_report(
             {
                 "sku": product.sku,
                 "product_name": product.name,
+                "product_name_km": product.name_km,
+                "brand": product.brand,
+                "image_url": product.image_url,
                 "total_quantity": inv.quantity,
                 "available_quantity": inv.available_quantity,
                 "store_code": store.code,

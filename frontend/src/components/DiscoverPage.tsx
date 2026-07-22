@@ -6,13 +6,17 @@ import type { CartItem } from "../types/order"
 interface DiscoverPageProps {
   onAddToCart: (item: CartItem) => void
   storeName?: string
+  storeCode?: string
   onSwitchToChat: () => void
+  onStoreChange?: (store: { code: string; name: string }) => void
 }
 
 type SortOption = "default" | "price_asc" | "price_desc" | "name_asc"
 
 export function DiscoverPage({
   onAddToCart,
+  storeCode: initialStoreCode,
+  onStoreChange,
 }: DiscoverPageProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedSearchImage, setSelectedSearchImage] = useState<string | null>(null)
@@ -25,16 +29,17 @@ export function DiscoverPage({
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [sortOption, setSortOption] = useState<SortOption>("default")
   const [addedSkus, setAddedSkus] = useState<Record<string, boolean>>({})
+  const [currentStoreCode, setCurrentStoreCode] = useState(initialStoreCode || "ALL_BRANCHES")
 
   useEffect(() => {
-    void loadProducts()
-  }, [])
+    void loadProducts(currentStoreCode)
+  }, [currentStoreCode])
 
-  const loadProducts = async () => {
+  const loadProducts = async (storeCode?: string) => {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await fetchCatalogProducts()
+      const data = await fetchCatalogProducts(undefined, undefined, storeCode)
       setProducts(data)
     } catch (err) {
       setError(
@@ -120,6 +125,52 @@ export function DiscoverPage({
 
   return (
     <div className="discover-page-container">
+      {/* Store Branch Selection Buttons Row */}
+      <div className="inspector-toolbar" style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "16px" }}>
+        <div className="branch-button-group" style={{ flexWrap: "wrap", gap: "8px" }}>
+          <button
+            type="button"
+            className={`branch-select-btn ${currentStoreCode === "ALL_BRANCHES" ? "branch-select-btn--active" : ""}`}
+            onClick={() => {
+              setCurrentStoreCode("ALL_BRANCHES")
+              onStoreChange?.({ code: "ALL_BRANCHES", name: "All Store Branches" })
+            }}
+          >
+            All Store Branches
+          </button>
+          <button
+            type="button"
+            className={`branch-select-btn ${currentStoreCode === "PP-BKK1" ? "branch-select-btn--active" : ""}`}
+            onClick={() => {
+              setCurrentStoreCode("PP-BKK1")
+              onStoreChange?.({ code: "PP-BKK1", name: "Phnom Penh BKK1 Store" })
+            }}
+          >
+            🏪 Phnom Penh BKK1
+          </button>
+          <button
+            type="button"
+            className={`branch-select-btn ${currentStoreCode === "PP-TTP" ? "branch-select-btn--active" : ""}`}
+            onClick={() => {
+              setCurrentStoreCode("PP-TTP")
+              onStoreChange?.({ code: "PP-TTP", name: "Phnom Penh Toul Tom Poung Store" })
+            }}
+          >
+            🏪 Phnom Penh Toul Tom Poung
+          </button>
+          <button
+            type="button"
+            className={`branch-select-btn ${currentStoreCode === "SR-CENTRAL" ? "branch-select-btn--active" : ""}`}
+            onClick={() => {
+              setCurrentStoreCode("SR-CENTRAL")
+              onStoreChange?.({ code: "SR-CENTRAL", name: "Siem Reap Central Store" })
+            }}
+          >
+            🏪 Siem Reap Central
+          </button>
+        </div>
+      </div>
+
       <div className="discover-page-toolbar">
         <div className="discover-search-box">
           <svg

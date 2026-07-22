@@ -18,10 +18,12 @@ export interface CatalogProduct {
 export async function fetchCatalogProducts(
   query?: string,
   category?: string,
+  storeCode?: string,
 ): Promise<CatalogProduct[]> {
   const params = new URLSearchParams()
   if (query) params.append("query", query)
   if (category && category !== "All") params.append("category", category)
+  if (storeCode && storeCode !== "ALL_BRANCHES") params.append("store_code", storeCode)
 
   const response = await fetch(
     `${API_BASE_URL}/api/v1/catalog/products?${params.toString()}`,
