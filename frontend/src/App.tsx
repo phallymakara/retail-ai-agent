@@ -100,7 +100,7 @@ function App() {
 
   const isGuestLimitReached = !user && guestQuestionCount >= GUEST_QUESTION_LIMIT
 
-  const [selectedStore, setSelectedStore] = useState<StoreBranch>(storeBranches[0])
+  const [selectedStore, setSelectedStore] = useState<StoreBranch>(ALL_BRANCHES_STORE)
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const [logoUrl, setLogoUrl] = useState("/src/assets/store.png")
@@ -108,7 +108,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     createMessage(
       "assistant",
-      `Hello! I’m your retail shopping assistant for the ${storeBranches[0].name}. What product can I help you find today?`,
+      `Hello! I’m your retail shopping assistant for All Store Branches. What product can I help you find today?`,
     ),
   ])
 
@@ -475,9 +475,9 @@ function App() {
 
     try {
       const order = await createOrder({
-        store_code: selectedStore.code,
-        customer_name: user.name,
-        customer_phone: customerPhone,
+        store_code: selectedStore.code || "PP-BKK1",
+        customer_name: user.name || "Customer",
+        customer_phone: customerPhone.trim() || "012345678",
         customer_email: user.email,
         auth_user_id: user.id,
         is_authenticated: true,
@@ -1313,14 +1313,14 @@ function App() {
                     className={`fulfillment-option ${fulfillmentType === "pickup" ? "active" : ""}`}
                     onClick={() => setFulfillmentType("pickup")}
                   >
-                    🏪 Pickup at Store
+                    Pickup at Store
                   </button>
                   <button
                     type="button"
                     className={`fulfillment-option ${fulfillmentType === "delivery" ? "active" : ""}`}
                     onClick={() => setFulfillmentType("delivery")}
                   >
-                    🛵 Delivery
+                    Delivery
                   </button>
                 </div>
               </div>

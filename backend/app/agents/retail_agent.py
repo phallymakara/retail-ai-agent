@@ -66,12 +66,13 @@ CUSTOMER_TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "name": "search_products",
-        "description": "Search active products by product name, Khmer name, SKU, brand or category.",
+        "description": "Search active products by product name, Khmer name, SKU, brand, category, or store branch.",
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": ["string", "null"], "description": "Product name, SKU, Khmer name or brand."},
-                "category": {"type": ["string", "null"], "description": "Optional exact product category."},
+                "query": {"type": ["string", "null"], "description": "Product name, SKU, Khmer name, or brand keyword."},
+                "category": {"type": ["string", "null"], "description": "Category name or keyword (e.g. Hair Care, Beverages, Dairy, Shampoo)."},
+                "store_code": {"type": ["string", "null"], "description": "Optional store branch code or store name (e.g. SR-CENTRAL, Siem Reap, PP-BKK1)."},
                 "limit": {"type": "integer", "description": "Maximum results from 1 to 20.", "minimum": 1, "maximum": 20, "default": 10},
             },
             "additionalProperties": False,

@@ -97,11 +97,13 @@ async def place_order(
             detail="Authentication is required to place an order. Please sign in.",
         )
 
+    target_store_code = request.store_code.strip() if request.store_code and request.store_code.strip() else "PP-BKK1"
+
     try:
         async with session.begin():
             order = await create_order(
                 session,
-                store_code=request.store_code,
+                store_code=target_store_code,
                 customer_name=request.customer_name,
                 customer_phone=request.customer_phone,
                 customer_email=request.customer_email,

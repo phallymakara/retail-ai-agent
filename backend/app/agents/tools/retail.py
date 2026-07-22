@@ -7,14 +7,16 @@ from app.services import retail_catalog
 async def search_products(
     query: str | None = None,
     category: str | None = None,
+    store_code: str | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """Search active products by name, SKU, brand or category."""
+    """Search active products by name, SKU, brand, category or store branch."""
     async with AsyncSessionFactory() as session:
         return await retail_catalog.search_products(
             session,
             query=query,
             category=category,
+            store_code=store_code,
             limit=limit,
         )
 

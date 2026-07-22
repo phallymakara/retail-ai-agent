@@ -21,16 +21,18 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreateRequest(BaseModel):
     store_code: str = Field(
+        default="PP-BKK1",
         min_length=1,
         max_length=50,
-        examples=["SR-CENTRAL"],
     )
     customer_name: str = Field(
-        min_length=2,
+        default="Customer",
+        min_length=1,
         max_length=150,
     )
     customer_phone: str = Field(
-        min_length=8,
+        default="012345678",
+        min_length=1,
         max_length=30,
     )
     customer_email: str | None = Field(
