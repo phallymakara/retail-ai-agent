@@ -1,7 +1,7 @@
 from typing import Any
 
 from app.db.session import AsyncSessionFactory
-from app.services import forecast_service, inventory_service
+from app.services import alert_service, forecast_service, inventory_service, reorder_service
 
 
 async def check_reorder_alerts(
@@ -106,6 +106,28 @@ async def predictive_demand_forecast(
     """Predict product sales velocity, days until stockout, and AI restocking recommendations."""
     async with AsyncSessionFactory() as session:
         return await forecast_service.get_demand_forecast(
+            session,
+            store_code=store_code,
+        )
+
+
+async def predictive_reorder_recommendation(
+    store_code: str | None = None,
+) -> list[dict[str, Any]]:
+    """Predict when to reorder stock, calculate lead-time demand, promotions impact, and overstock levels."""
+    async with AsyncSessionFactory() as session:
+        return await reorder_service.get_reorder_recommendations(
+            session,
+            store_code=store_code,
+        )
+
+
+async def check_inventory_exceptions(
+    store_code: str | None = None,
+) -> list[dict[str, Any]]:
+    """Scan and audit inventory for anomalies, negative stocks, reservation mismatches, sudden drops, or missing reason logs."""
+    async with AsyncSessionFactory() as session:
+        return await alert_service.get_inventory_exceptions(
             session,
             store_code=store_code,
         )

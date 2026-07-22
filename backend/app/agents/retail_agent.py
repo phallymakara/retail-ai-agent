@@ -8,6 +8,7 @@ from app.agents.providers.microsoft_foundry import (
 )
 from app.agents.tools import (
     check_inventory,
+    check_inventory_exceptions,
     check_reorder_alerts,
     confirm_inventory_action,
     generate_inventory_report,
@@ -15,6 +16,7 @@ from app.agents.tools import (
     get_inventory_audit_logs,
     get_product_details,
     predictive_demand_forecast,
+    predictive_reorder_recommendation,
     propose_stock_adjustment,
     propose_stock_transfer,
     search_products,
@@ -59,6 +61,8 @@ Rules:
 3. Be precise, professional, and efficient.
 5. CRITICAL REPORTING RULE: When calling generate_inventory_report, NEVER output "Key Metrics", "Total Products Tracked", "Total Stock Quantity", "Total Available Quantity", "Reserved Quantity", "Low Stock Items", or "Out-of-Stock Items" in text bullets or lists. All of these metrics are already rendered visually in the report table card. Your text response must ONLY contain a short 1-line intro, followed directly by actionable recommendations for store staff.
 6. STOCK MOVEMENT RULE: When staff asks to move or transfer stock using a category name (e.g. "Dairy", "Beverages"), product name (e.g. "Milk"), or partial term, ALWAYS invoke propose_stock_transfer passing the category or product name string to the "sku" parameter. If the source store branch is omitted, pass from_store_code as null or current store code. Never refuse a transfer request before trying propose_stock_transfer.
+7. Reorder Recommendations: Call predictive_reorder_recommendation when staff asks: "Which products should we reorder?", "Which branch may run out of stock?", "Show urgent restock recommendations", "How much milk should we restock?", or "Which products are overstocked?".
+8. Exception Alerts: Call check_inventory_exceptions when staff asks: "Scan for inventory exception alerts", "Identify stock anomalies", "Are there any inventory errors or mismatches?", or "Check for negative stock levels".
 """.strip()
 
 
@@ -217,6 +221,30 @@ STAFF_TOOLS: list[dict[str, Any]] = CUSTOMER_TOOLS + [
             "additionalProperties": False,
         },
     },
+    {
+        "type": "function",
+        "name": "predictive_reorder_recommendation",
+        "description": "Analyze lead times, active promotions, and 30-day velocity to recommend restock quantities and identify overstock levels.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "store_code": {"type": ["string", "null"], "description": "Optional store code filter."},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "check_inventory_exceptions",
+        "description": "Scan and analyze store inventories for critical anomalies, negative stock levels, reservation mismatches, sudden drops, or missing reason audits.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "store_code": {"type": ["string", "null"], "description": "Optional store code filter."},
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -234,6 +262,8 @@ TOOL_HANDLERS: dict[str, ToolHandler] = {
     "get_inventory_audit_logs": get_inventory_audit_logs,
     "generate_inventory_report": generate_inventory_report,
     "predictive_demand_forecast": predictive_demand_forecast,
+    "predictive_reorder_recommendation": predictive_reorder_recommendation,
+    "check_inventory_exceptions": check_inventory_exceptions,
 }
 
 

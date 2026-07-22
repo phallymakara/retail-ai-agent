@@ -20,6 +20,9 @@ import { InventoryProposalCard } from "./components/InventoryProposalCard"
 import { ReorderAlertsCard } from "./components/ReorderAlertsCard"
 import { AuditReportCard } from "./components/AuditReportCard"
 import { DemandForecastCard } from "./components/DemandForecastCard"
+import { ReorderRecommendationCard } from "./components/ReorderRecommendationCard"
+import { ExceptionAlertsCard } from "./components/ExceptionAlertsCard"
+import type { ReorderRecommendationItem, InventoryExceptionItem } from "./types/inventory"
 import { useAuth } from "./contexts/AuthContext"
 
 export interface StoreBranch {
@@ -65,6 +68,8 @@ const customerSuggestedQuestions = [
 ]
 
 const staffSuggestedQuestions = [
+  "Scan for inventory exception alerts",
+  "Which products should we reorder this week?",
   "Show AI sales & demand forecast for stockouts",
   "Which items are low in stock or need reordering?",
   "Transfer 10 units of MILK-UHT-1L from PP-BKK1 to PP-TTP",
@@ -965,6 +970,33 @@ function App() {
                               <DemandForecastCard
                                 key={`forecast-${idx}`}
                                 forecasts={exec.result as any}
+                                onProposeAction={(promptText) => void submitMessage(promptText)}
+                              />
+                            )
+                          }
+                          if (exec.name === "predictive_reorder_recommendation" && Array.isArray(exec.result)) {
+                            return (
+                              <ReorderRecommendationCard
+                                key={`reorder-rec-${idx}`}
+                                items={exec.result as any}
+                                onProposeRestock={(sku, storeCode, qty, reason) => {
+                                  void submitMessage(
+                                    `propose stock adjustment for product ${sku} at store ${storeCode} with quantity ${qty} and reason: ${reason}`
+                                  )
+                                }}
+                                onProposeTransfer={(sku, fromStoreCode, toStoreCode, qty, reason) => {
+                                  void submitMessage(
+                                    `propose stock transfer for product ${sku} from store ${fromStoreCode} to store ${toStoreCode} with quantity ${qty} and reason: ${reason}`
+                                  )
+                                }}
+                              />
+                            )
+                          }
+                          if (exec.name === "check_inventory_exceptions" && Array.isArray(exec.result)) {
+                            return (
+                              <ExceptionAlertsCard
+                                key={`exceptions-${idx}`}
+                                exceptions={exec.result as any}
                                 onProposeAction={(promptText) => void submitMessage(promptText)}
                               />
                             )

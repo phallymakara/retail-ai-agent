@@ -122,3 +122,35 @@ export interface DemandForecastItem {
     suggested_donor_store_code?: string | null
     suggested_transfer_qty?: number | null
 }
+
+export interface ReorderRecommendationItem {
+    sku: string
+    product_name: string
+    category: string
+    store_code: string
+    store_name: string
+    available_quantity: number
+    reserved_quantity: number
+    reorder_level: number
+    lead_time_days: number
+    daily_sales_rate: number
+    has_active_promotion: boolean
+    predicted_daily_sales: number
+    safety_stock: number
+    reorder_point: number
+    status: "restock_urgent" | "restock_urgent_transfer" | "restock_warning" | "overstock" | "healthy" | string
+    suggested_quantity: number
+    suggested_transfer_store_code?: string | null
+    recommendation: string
+}
+
+export interface InventoryExceptionItem {
+    sku: string
+    product_name: string
+    store_code: string
+    store_name: string
+    type: string
+    severity: "critical" | "warning" | "info" | string
+    details: string
+    suggested_action: string
+}

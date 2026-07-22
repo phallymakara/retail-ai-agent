@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
 from app.schemas.inventory import ProposalConfirmRequest
-from app.services import forecast_service, inventory_service
+from app.services import alert_service, forecast_service, inventory_service, reorder_service
 from app.services.report_export_service import generate_excel_report, generate_pdf_report
 
 router = APIRouter(
@@ -133,6 +133,28 @@ async def get_demand_forecast_route(
     store_code: str | None = None,
 ):
     return await forecast_service.get_demand_forecast(
+        session,
+        store_code=store_code,
+    )
+
+
+@router.get("/reorder-recommendations")
+async def get_reorder_recommendations_route(
+    session: DatabaseSession,
+    store_code: str | None = None,
+):
+    return await reorder_service.get_reorder_recommendations(
+        session,
+        store_code=store_code,
+    )
+
+
+@router.get("/exception-alerts")
+async def get_exception_alerts_route(
+    session: DatabaseSession,
+    store_code: str | None = None,
+):
+    return await alert_service.get_inventory_exceptions(
         session,
         store_code=store_code,
     )

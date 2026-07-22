@@ -4,6 +4,8 @@ import type {
     InventoryProposalData,
     InventoryReportData,
     ReorderAlertItem,
+    ReorderRecommendationItem,
+    InventoryExceptionItem,
 } from "../types/inventory"
 
 const API_BASE_URL =
@@ -119,6 +121,32 @@ export async function fetchDemandForecastApi(
     const response = await fetch(url.toString())
     if (!response.ok) {
         throw new Error("Failed to fetch AI demand forecast.")
+    }
+    return response.json()
+}
+
+export async function fetchReorderRecommendationsApi(
+    storeCode?: string,
+): Promise<ReorderRecommendationItem[]> {
+    const url = new URL(`${API_BASE_URL}/api/v1/inventory/reorder-recommendations`)
+    if (storeCode) url.searchParams.set("store_code", storeCode)
+
+    const response = await fetch(url.toString())
+    if (!response.ok) {
+        throw new Error("Failed to fetch AI reorder recommendations.")
+    }
+    return response.json()
+}
+
+export async function fetchInventoryExceptionsApi(
+    storeCode?: string,
+): Promise<InventoryExceptionItem[]> {
+    const url = new URL(`${API_BASE_URL}/api/v1/inventory/exception-alerts`)
+    if (storeCode) url.searchParams.set("store_code", storeCode)
+
+    const response = await fetch(url.toString())
+    if (!response.ok) {
+        throw new Error("Failed to fetch inventory exception alerts.")
     }
     return response.json()
 }
