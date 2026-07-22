@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: backend
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: aiohttp>=3.14.1
+Requires-Dist: alembic>=1.18.5
+Requires-Dist: asyncpg>=0.31.0
+Requires-Dist: azure-storage-blob>=12.30.0
+Requires-Dist: bcrypt>=5.0.0
+Requires-Dist: fastapi>=0.139.0
+Requires-Dist: greenlet>=3.2.4
+Requires-Dist: httpx>=0.28.1
+Requires-Dist: openai==2.45.0
+Requires-Dist: openpyxl>=3.1.5
+Requires-Dist: passlib>=1.7.4
+Requires-Dist: psycopg[binary]>=3.3.4
+Requires-Dist: pydantic-settings>=2.14.2
+Requires-Dist: python-jose>=3.5.0
+Requires-Dist: reportlab>=5.0.0
+Requires-Dist: sqlalchemy[asyncio]>=2.0.51
+Requires-Dist: structlog>=26.1.0
+Requires-Dist: uvicorn>=0.51.0

@@ -143,8 +143,8 @@ export function ReorderRecommendationCard({
                             onClick={() =>
                               onProposeTransfer(
                                 item.sku,
-                                item.status === "overstock" ? item.store_code : item.suggested_transfer_store_code,
-                                item.status === "overstock" ? item.suggested_transfer_store_code : item.store_code,
+                                item.status === "overstock" ? item.store_code : (item.suggested_transfer_store_code ?? ""),
+                                item.status === "overstock" ? (item.suggested_transfer_store_code ?? "") : item.store_code,
                                 item.suggested_quantity,
                                 `AI Reorder Recommendation: Inter-branch transfer to balance stockout.`,
                               )

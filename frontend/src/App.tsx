@@ -24,7 +24,7 @@ import { ReorderRecommendationCard } from "./components/ReorderRecommendationCar
 import { ExceptionAlertsCard } from "./components/ExceptionAlertsCard"
 import { StockInspector } from "./components/StockInspector"
 import { OrderHistoryCard } from "./components/OrderHistoryCard"
-import type { ReorderRecommendationItem, InventoryExceptionItem } from "./types/inventory"
+
 import { useAuth } from "./contexts/AuthContext"
 
 export interface StoreBranch {
@@ -765,7 +765,10 @@ function App() {
           onAddToCart={addToCart}
           storeName={selectedStore.name}
           storeCode={selectedStore.code}
-          onStoreChange={(store) => setSelectedStore(store)}
+          onStoreChange={(store) => {
+            const full = storeBranches.find((b) => b.code === store.code);
+            if (full) setSelectedStore(full);
+          }}
           onSwitchToChat={() => setActiveView("chat")}
         />
       ) : (

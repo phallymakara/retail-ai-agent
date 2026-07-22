@@ -68,33 +68,33 @@ retail-ai-agent/
 
 ---
 
-## ⚙️ Backend Installation & Setup
+## ⚙️ Backend Installation & Setup (Windows)
 
 1. **Navigate to the Backend folder:**
-   ```bash
+   ```powershell
    cd backend
    ```
 
 2. **Set up a Virtual Environment:**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
+   ```powershell
+   python -m venv .venv
+   .venv\Scripts\activate
    ```
 
 3. **Install Dependencies:**
    If using `uv` (recommended):
-   ```bash
+   ```powershell
    uv pip install -e .
    ```
    Or standard `pip`:
-   ```bash
+   ```powershell
    pip install -e .
    ```
 
 4. **Configure Environment Variables:**
-   Create a `.env` file in the `backend/` directory by copying `.env.example`:
-   ```bash
-   cp .env.example .env
+   Create a `.env` file in the `backend\` directory by copying `.env.example`:
+   ```powershell
+   copy .env.example .env
    ```
    Fill in your actual secrets in `.env`:
    * `OPENAI_API_KEY`
@@ -104,69 +104,69 @@ retail-ai-agent/
 
 5. **Run Database Migrations:**
    Ensure your database is reachable, then run Alembic migrations to create tables:
-   ```bash
+   ```powershell
    alembic upgrade head
    ```
 
 6. **Seed Initial Database Data:**
    Ensure your database is seeded:
-   ```bash
+   ```powershell
    python scripts/seed_retail_data.py
    ```
 
 7. **Start the FastAPI Server:**
-   ```bash
+   ```powershell
    uvicorn app.main:app --reload
    ```
    The backend API docs will be active at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
 ---
 
-## 💻 Frontend Installation & Setup
+## 💻 Frontend Installation & Setup (Windows)
 
 1. **Navigate to the Frontend folder:**
-   ```bash
+   ```powershell
    cd frontend
    ```
 
 2. **Install Package Dependencies:**
-   ```bash
+   ```powershell
    npm install
    ```
 
 3. **Configure API URL (Optional):**
-   By default, Vite binds `VITE_API_BASE_URL` to `http://127.0.0.1:8000`. You can configure a `.env.local` if running the backend on a different address:
+   By default, Vite reads `VITE_API_BASE_URL` from `frontend\.env`. You can override it via `.env.local`:
    ```env
    VITE_API_BASE_URL=http://localhost:8000
    ```
 
 4. **Start the Development Server:**
-   ```bash
+   ```powershell
    npm run dev
    ```
    Open your browser to the local address displayed in the terminal (usually [http://localhost:5173](http://localhost:5173)).
 
 5. **Build for Production:**
    Verify that TypeScript builds successfully without errors:
-   ```bash
+   ```powershell
    npm run build
    ```
 
 ---
 
-## 🧪 Testing and Verification
+## 🧪 Testing and Verification (Windows)
 
-A set of diagnostic scripts is included in the `backend/scripts/` folder to verify system integrity:
+A set of diagnostic scripts is included in the `backend\scripts\` folder to verify system integrity:
 
 * **Test Retail Agent & Tools:**
-  ```bash
+  ```powershell
   python scripts/test_retail_agent.py
   ```
 * **Test Order Creation and Transaction Rollbacks:**
-  ```bash
+  ```powershell
   python scripts/test_order_service.py
   ```
 * **Check database connections:**
-  ```bash
+  ```powershell
   python scripts/test_database.py
   ```

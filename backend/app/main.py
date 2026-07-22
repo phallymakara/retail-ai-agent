@@ -9,6 +9,7 @@ from app.api.routes.chat import router as chat_router
 from app.api.routes.catalog import router as catalog_router
 from app.api.routes.inventory import router as inventory_router
 
+from app.core.config import settings
 from app.db.session import close_database, init_db
 
 
@@ -32,16 +33,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-    ],
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
