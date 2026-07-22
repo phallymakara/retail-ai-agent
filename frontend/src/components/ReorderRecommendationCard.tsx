@@ -35,30 +35,30 @@ export function ReorderRecommendationCard({
   }
 
   return (
-    <div className="demand-forecast-card">
-      <div className="forecast-header">
+    <div className="reorder-recommendation-card">
+      <div className="reorder-card-header">
         <div>
           <h3>AI Reorder & Restock Recommendations</h3>
-          <p className="forecast-subtitle">Based on lead times, 30-day velocity, safety stock, and promotions</p>
+          <p className="reorder-subtitle">Based on lead times, 30-day velocity, safety stock, and promotions</p>
         </div>
-        <div className="forecast-filters">
+        <div className="reorder-filters">
           <button
             type="button"
-            className={`filter-btn ${filter === "all" ? "active" : ""}`}
+            className={`filter-btn ${filter === "all" ? "active all" : ""}`}
             onClick={() => setFilter("all")}
           >
             All Items
           </button>
           <button
             type="button"
-            className={`filter-btn ${filter === "urgent" ? "active" : ""}`}
+            className={`filter-btn ${filter === "urgent" ? "active urgent" : ""}`}
             onClick={() => setFilter("urgent")}
           >
             Urgent Restock
           </button>
           <button
             type="button"
-            className={`filter-btn ${filter === "overstock" ? "active" : ""}`}
+            className={`filter-btn ${filter === "overstock" ? "active overstock" : ""}`}
             onClick={() => setFilter("overstock")}
           >
             Overstock
@@ -66,8 +66,8 @@ export function ReorderRecommendationCard({
         </div>
       </div>
 
-      <div className="forecast-table-container">
-        <table className="forecast-table">
+      <div className="reorder-table-container">
+        <table className="reorder-table">
           <thead>
             <tr>
               <th>Product</th>
@@ -170,7 +170,7 @@ export function ReorderRecommendationCard({
         </table>
       </div>
 
-      <div className="forecast-summary-footer">
+      <div className="reorder-summary-footer">
         {filteredItems.map((item, idx) => {
           if (item.status === "healthy") return null
           const itemKey = `rec-row-${item.sku}-${item.store_code}-${idx}`

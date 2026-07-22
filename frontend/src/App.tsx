@@ -23,6 +23,7 @@ import { DemandForecastCard } from "./components/DemandForecastCard"
 import { ReorderRecommendationCard } from "./components/ReorderRecommendationCard"
 import { ExceptionAlertsCard } from "./components/ExceptionAlertsCard"
 import { StockInspector } from "./components/StockInspector"
+import { OrderHistoryCard } from "./components/OrderHistoryCard"
 import type { ReorderRecommendationItem, InventoryExceptionItem } from "./types/inventory"
 import { useAuth } from "./contexts/AuthContext"
 
@@ -425,6 +426,25 @@ function App() {
                   : msg
               )
             )
+
+            const addToCartExec = chunk.tool_executions.find(
+              (exec) => exec.name === "add_to_cart"
+            )
+            if (addToCartExec && addToCartExec.result) {
+              const res = addToCartExec.result
+              if (res.success && res.sku) {
+                addToCart({
+                  productId: res.sku,
+                  sku: res.sku,
+                  name: res.product_name,
+                  nameKm: res.name_km || null,
+                  imageUrl: res.image_url || null,
+                  unitPrice: res.price !== undefined ? String(res.price) : "0.00",
+                  currency: "USD",
+                  quantity: res.quantity || 1
+                })
+              }
+            }
           } else if (chunk.type === "response_id" && chunk.response_id) {
             setPreviousResponseId(chunk.response_id)
           } else if (chunk.type === "content" && chunk.delta) {
@@ -639,7 +659,7 @@ function App() {
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
-                <span>Discover</span>
+                <span>Product</span>
               </button>
             ) : (
               <button
@@ -1049,6 +1069,12 @@ function App() {
                           }
                           if (exec.name === "get_inventory_audit_logs" && Array.isArray(exec.result)) {
                             return <AuditReportCard key={`audit-${idx}`} auditLogs={exec.result as any} />
+                          }
+                          if (exec.name === "get_order_history" && Array.isArray(exec.result)) {
+                            if (exec.result.length > 0 && "error" in (exec.result[0] as any)) {
+                              return null
+                            }
+                            return <OrderHistoryCard key={`orders-${idx}`} orders={exec.result as any} />
                           }
                           if (
                             exec.name === "generate_inventory_report" &&

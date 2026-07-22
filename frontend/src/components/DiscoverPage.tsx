@@ -125,53 +125,43 @@ export function DiscoverPage({
 
   return (
     <div className="discover-page-container">
-      {/* Store Branch Selection Buttons Row */}
-      <div className="inspector-toolbar" style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "16px" }}>
-        <div className="branch-button-group" style={{ flexWrap: "wrap", gap: "8px" }}>
-          <button
-            type="button"
-            className={`branch-select-btn ${currentStoreCode === "ALL_BRANCHES" ? "branch-select-btn--active" : ""}`}
-            onClick={() => {
-              setCurrentStoreCode("ALL_BRANCHES")
-              onStoreChange?.({ code: "ALL_BRANCHES", name: "All Store Branches" })
-            }}
-          >
-            All Store Branches
-          </button>
-          <button
-            type="button"
-            className={`branch-select-btn ${currentStoreCode === "PP-BKK1" ? "branch-select-btn--active" : ""}`}
-            onClick={() => {
-              setCurrentStoreCode("PP-BKK1")
-              onStoreChange?.({ code: "PP-BKK1", name: "Phnom Penh BKK1 Store" })
-            }}
-          >
-            🏪 Phnom Penh BKK1
-          </button>
-          <button
-            type="button"
-            className={`branch-select-btn ${currentStoreCode === "PP-TTP" ? "branch-select-btn--active" : ""}`}
-            onClick={() => {
-              setCurrentStoreCode("PP-TTP")
-              onStoreChange?.({ code: "PP-TTP", name: "Phnom Penh Toul Tom Poung Store" })
-            }}
-          >
-            🏪 Phnom Penh Toul Tom Poung
-          </button>
-          <button
-            type="button"
-            className={`branch-select-btn ${currentStoreCode === "SR-CENTRAL" ? "branch-select-btn--active" : ""}`}
-            onClick={() => {
-              setCurrentStoreCode("SR-CENTRAL")
-              onStoreChange?.({ code: "SR-CENTRAL", name: "Siem Reap Central Store" })
-            }}
-          >
-            🏪 Siem Reap Central
-          </button>
-        </div>
-      </div>
-
       <div className="discover-page-toolbar">
+        <div style={{ gap: "8px", display: "flex", alignItems: "center" }}>
+          <label htmlFor="discover-branch-select" style={{ fontWeight: 700, fontSize: "14.5px", color: "#1e293b" }}>
+            Select Branch:
+          </label>
+          <select
+            id="discover-branch-select"
+            value={currentStoreCode}
+            onChange={(e) => {
+              const val = e.target.value
+              setCurrentStoreCode(val)
+              const matchedName = 
+                val === "ALL_BRANCHES" ? "All Store Branches" :
+                val === "PP-BKK1" ? "Phnom Penh BKK1 Store" :
+                val === "PP-TTP" ? "Phnom Penh Toul Tom Poung Store" :
+                "Siem Reap Central Store"
+              onStoreChange?.({ code: val, name: matchedName })
+            }}
+            style={{
+              padding: "8.5px 16px",
+              borderRadius: "10px",
+              border: "1px solid #cbd5e1",
+              fontSize: "13px",
+              fontWeight: 700,
+              color: "#334155",
+              background: "white",
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            <option value="ALL_BRANCHES">All Store Branches</option>
+            <option value="PP-BKK1">Phnom Penh BKK1 Store</option>
+            <option value="PP-TTP">Phnom Penh Toul Tom Poung Store</option>
+            <option value="SR-CENTRAL">Siem Reap Central Store</option>
+          </select>
+        </div>
+
         <div className="discover-search-box">
           <svg
             viewBox="0 0 24 24"

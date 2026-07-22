@@ -7,6 +7,7 @@ from app.agents.providers.microsoft_foundry import (
     MicrosoftFoundryProvider,
 )
 from app.agents.tools import (
+    add_to_cart,
     check_inventory,
     check_inventory_exceptions,
     check_reorder_alerts,
@@ -14,12 +15,13 @@ from app.agents.tools import (
     generate_inventory_report,
     get_active_promotions,
     get_inventory_audit_logs,
+    get_order_history,
     get_product_details,
+    search_products,
     predictive_demand_forecast,
     predictive_reorder_recommendation,
     propose_stock_adjustment,
     propose_stock_transfer,
-    search_products,
 )
 
 CUSTOMER_AGENT_INSTRUCTIONS = """
@@ -29,6 +31,8 @@ You help customers:
 - Search for products by name, Khmer name, SKU, brand, or category.
 - View product information, prices, and available stock at store branches.
 - Find active promotions and discounts.
+- Add products to their shopping cart (using add_to_cart tool) when requested.
+- View their past orders and order history (using get_order_history tool) when requested. Check if they specify a period such as 'today', 'yesterday', 'this week', 'last week', or 'this month' and pass it to the 'period' argument of get_order_history.
 - Assist with shopping recommendations and order guidance.
 
 Rules:
@@ -41,6 +45,7 @@ Rules:
 7. Keep customer answers friendly, clear, and concise.
 8. Do not list raw product properties (such as Category, Brand, Description, Price, Image, etc.) in text if a product card is rendered.
 9. As a customer assistant, you CANNOT modify inventory or perform stock adjustments/transfers.
+10. CRITICAL ORDER HISTORY RULE: When get_order_history is called, NEVER list raw order info (such as Order Number, Store, Status, Fulfillment Type, Total Amount, or Items list) in your text output. All of this information is already rendered visually in the invoice card. Your text response must ONLY contain a short friendly intro/outro (e.g. "Here is your order history for this week:") without duplicating order details.
 """.strip()
 
 
@@ -117,6 +122,36 @@ CUSTOMER_TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "sku": {"type": ["string", "null"], "description": "Optional exact product SKU."},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "add_to_cart",
+        "description": "Add a product to the customer's shopping cart. Call search_products first if the user didn't specify the SKU directly.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sku": {"type": "string", "description": "The exact SKU of the product to add."},
+                "quantity": {"type": "integer", "description": "The quantity of items to add.", "default": 1, "minimum": 1},
+            },
+            "required": ["sku"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "get_order_history",
+        "description": "Retrieve the customer's past order history/purchase logs, optionally filtering by period range.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Maximum number of past orders to return.", "default": 5, "minimum": 1, "maximum": 20},
+                "period": {
+                    "type": ["string", "null"],
+                    "description": "Optional date filter range. Must be one of: 'today', 'yesterday', 'this_week', 'last_week', 'this_month'.",
+                },
             },
             "additionalProperties": False,
         },
@@ -264,6 +299,8 @@ TOOL_HANDLERS: dict[str, ToolHandler] = {
     "predictive_demand_forecast": predictive_demand_forecast,
     "predictive_reorder_recommendation": predictive_reorder_recommendation,
     "check_inventory_exceptions": check_inventory_exceptions,
+    "add_to_cart": add_to_cart,
+    "get_order_history": get_order_history,
 }
 
 
@@ -366,6 +403,8 @@ class RetailAgent:
 
         raise RuntimeError("The retail agent exceeded its maximum tool steps.")
 
+
+
     async def _execute_tool(
         self,
         *,
@@ -391,6 +430,9 @@ class RetailAgent:
                     arguments["staff_user_id"] = staff_user_id
                 if staff_name:
                     arguments["staff_name"] = staff_name
+            elif name == "get_order_history":
+                if staff_user_id:
+                    arguments["auth_user_id"] = staff_user_id
 
             result = await handler(**arguments)
             return result, arguments

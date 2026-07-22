@@ -44,13 +44,13 @@ export function ExceptionAlertsCard({
   }
 
   return (
-    <div className="demand-forecast-card">
-      <div className="forecast-header">
+    <div className="exception-alerts-card">
+      <div className="exception-card-header">
         <div>
           <h3>Inventory Exception Alerts</h3>
-          <p className="forecast-subtitle">Critical stock level errors, calculations mismatches, and operational audit gaps</p>
+          <p className="exception-subtitle">Critical stock level errors, calculations mismatches, and operational audit gaps</p>
         </div>
-        <div className="forecast-filters">
+        <div className="exception-filters">
           <button
             type="button"
             className={`filter-btn ${filter === "all" ? "active" : ""}`}
@@ -75,15 +75,14 @@ export function ExceptionAlertsCard({
         </div>
       </div>
 
-      <div className="forecast-table-container">
-        <table className="forecast-table">
+      <div className="exception-table-container">
+        <table className="exception-table">
           <thead>
             <tr>
               <th>Product / SKU</th>
               <th>Branch</th>
               <th>Severity</th>
               <th>Exception Details</th>
-              <th>Suggested Recovery</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -106,9 +105,6 @@ export function ExceptionAlertsCard({
                     </div>
                   </td>
                   <td>
-                    <span className="suggested-action-lbl">{item.suggested_action}</span>
-                  </td>
-                  <td>
                     <button
                       type="button"
                       className={`action-link-btn ${
@@ -128,7 +124,7 @@ export function ExceptionAlertsCard({
             })}
             {filteredItems.length === 0 && (
               <tr>
-                <td colSpan={6} className="empty-forecast-row">
+                <td colSpan={5} className="empty-forecast-row">
                   No inventory exception alerts found for this filter.
                 </td>
               </tr>
